@@ -26,7 +26,7 @@ def evaluate_cf_sensitivity(
     min_cooccurrences: Sequence[int] = (1, 2, 3),
     shrinkages: Sequence[float] = (0.0, 5.0, 10.0),
     k: int = 10,
-) -> list[dict[str, float]]:
+) -> list[dict[str, float | str]]:
     """Evaluate a parameter grid on per-user temporal validation splits.
 
     Each configuration is trained only on events preceding each user's
@@ -49,7 +49,7 @@ def evaluate_cf_sensitivity(
     items = list(catalog)
     tfidf = TfidfIndex.fit(items)
     available = {item.key for item in items if item.is_available}
-    results: list[dict[str, float]] = []
+    results: list[dict[str, float | str]] = []
 
     for threshold in rating_thresholds:
         splits = temporal_holdout(rows, positive_rating_threshold=threshold)
@@ -96,7 +96,7 @@ def evaluate_cf_sensitivity(
                         "rating_threshold": float(threshold),
                         "min_cooccurrence": float(min_cooccurrence),
                         "shrinkage": float(shrinkage),
-                        "strategy_code": 1.0 if strategy == "item_item_cf" else 2.0,
+                        "strategy": strategy,
                         **metrics,
                     })
 
@@ -108,6 +108,6 @@ def evaluate_cf_sensitivity(
             row["rating_threshold"],
             row["min_cooccurrence"],
             row["shrinkage"],
-            row["strategy_code"],
+            str(row["strategy"]),
         ),
     )

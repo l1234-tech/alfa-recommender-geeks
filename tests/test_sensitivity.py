@@ -20,7 +20,7 @@ class SensitivityTests(unittest.TestCase):
             for offset, item in enumerate(("a", "b", "c", "d")):
                 events.append(UserInteraction(
                     user, item, "article", "rating",
-                    5 if offset < 3 else 2, None,
+                    5, None,
                     datetime(2026, 1, 1) + timedelta(days=offset),
                 ))
 
