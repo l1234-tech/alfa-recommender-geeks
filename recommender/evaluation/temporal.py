@@ -11,6 +11,7 @@ class UserTemporalSplit:
     train_events:tuple[UserInteraction,...]
     test_relevant_item_keys:frozenset[ItemKey]
     collaborative_train_events:tuple[UserInteraction,...]=()
+    test_positive_events:tuple[UserInteraction,...]=()
 def _utc_sort_value(value:datetime|None)->datetime:
     if value is None:return datetime.min.replace(tzinfo=timezone.utc)
     if value.tzinfo is None:return value.replace(tzinfo=timezone.utc)
@@ -26,11 +27,12 @@ def temporal_holdout(events:Iterable[UserInteraction],*,positive_rating_threshol
         if len(ordered)<=min_train_events:continue
         size=max(1,math_ceil(len(ordered)*holdout_fraction)); size=min(size,len(ordered)-min_train_events)
         train,test=ordered[:-size],ordered[-size:]; train_keys={e.item_key for e in train}
-        relevant=frozenset(e.item_key for e in test if is_positive_event(e,positive_rating_threshold) and e.item_key not in train_keys)
+        positive_test=tuple(e for e in test if is_positive_event(e,positive_rating_threshold) and e.item_key not in train_keys)
+        relevant=frozenset(e.item_key for e in positive_test)
         if not relevant:continue
         boundary=min(_utc_sort_value(e.event_at) for e in test)
         cf_train=tuple(e for e in all_events if _utc_sort_value(e.event_at)<boundary)
-        splits.append(UserTemporalSplit(tuple(train),relevant,cf_train))
+        splits.append(UserTemporalSplit(tuple(train),relevant,cf_train,positive_test))
     return splits
 def math_ceil(value:float)->int:
     integer=int(value); return integer if integer==value else integer+1
