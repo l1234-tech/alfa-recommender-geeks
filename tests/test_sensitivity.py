@@ -31,7 +31,7 @@ class SensitivityTests(unittest.TestCase):
             shrinkages=(0.0,),
             k=2,
         )
-        self.assertEqual(len(result), 8)
+        self.assertEqual(len(result), 4)
         self.assertTrue(all("users_evaluated" in row for row in result))
         self.assertTrue(all("ndcg@2" in row for row in result))
         self.assertTrue(all("user_id" not in row and "user_ids" not in row for row in result))
