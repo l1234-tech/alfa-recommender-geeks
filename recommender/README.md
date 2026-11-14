@@ -5,19 +5,14 @@
 ## Реализованные модули
 
 - `models.py` — контракты каталога, профиля и рекомендации; ключ объекта — `(item_type, item_id)`.
-- `data_processing/catalog.py`, `postgres_catalog.py`, `catalog.sql` — нормализация и извлечение открытых метаданных каталога.
-- `data_processing/interactions.py`, `interactions.sql` — извлечение оценок и прогресса.
-- `data_processing/profiles.py` — агрегация onboarding и положительной истории в профиль.
-- `algorithms/content_baseline.py` — прозрачный metadata baseline.
-- `algorithms/tfidf.py` — TF-IDF индекс по открытым метаданным.
-- `algorithms/hybrid.py` — комбинация TF-IDF и metadata baseline.
-- `algorithms/collaborative.py` — item-item collaborative filtering по типизированным ключам.
-- `ranking.py` — фильтрация недоступных, просмотренных и завершённых материалов и сортировка.
-- `explanations.py` — объяснение причин и следующий шаг.
-- `evaluation/metrics.py` — Precision@K, Recall@K, NDCG@K.
-- `evaluation/temporal.py` — временное разделение событий по пользователям.
-- `evaluation/evaluate.py` — агрегатная офлайн-оценка baseline.
-- `evaluation/compare.py` — сравнение четырёх стратегий на одинаковых temporal splits.
+- `data_processing/` — нормализация каталога, SQL-извлечение открытых метаданных и взаимодействий, построение профилей.
+- `algorithms/` — metadata baseline, TF-IDF, content hybrid и item-item collaborative filtering.
+- `ranking.py` — фильтрация недоступных, просмотренных и завершённых материалов.
+- `explanations.py` — объяснение рекомендаций и следующий шаг.
+- `evaluation/metrics.py` — Precision@K, Recall@K, NDCG@K и catalog coverage.
+- `evaluation/temporal.py` — temporal holdout с типизированной тестовой релевантностью и train-набором для CF.
+- `evaluation/compare.py` — сравнение четырёх стратегий, общие метрики и срезы по типам положительных событий.
+- `evaluation/cold_start.py` — benchmark onboarding-only профилей на вручную заданных тест-кейсах.
 
 ## Запуск тестов
 
@@ -27,28 +22,19 @@
 python -m unittest discover -s tests -v
 ```
 
-## ML-пайплайн
+## Офлайн-эксперименты
 
-`load_catalog(connection)` и `load_interactions(connection)` принимают уже созданное psycopg-соединение; управление подключением и секретами остаётся вне ML-пакета.
+`compare_content_models(events, catalog, k=10)` сравнивает metadata baseline, TF-IDF hybrid, item-item CF и content+CF hybrid на одинаковых временных разбиениях. Результат содержит общие Precision@K, Recall@K, NDCG@K, число пользователей и catalog coverage; также добавляются отдельные метрики по типам положительных событий.
 
-`build_user_profile(events, catalog, onboarding=...)` объединяет onboarding с темами/тегами/отраслями материалов из положительной истории. По умолчанию положительными считаются оценки 4–5 и подтверждённое завершение курса/урока. Сырые UserId остаются только внутри пайплайна.
-
-`recommend(..., strategy=...)` поддерживает:
-- `baseline` — metadata overlap;
-- `hybrid` — TF-IDF + metadata overlap;
-- `collaborative` — item-item CF;
-- `content_cf_hybrid` — контент + CF с fallback на контент при отсутствии CF-сигнала.
-
-`compare_content_models(events, catalog, k=10)` сравнивает все четыре стратегии на одинаковых временных разбиениях. Для каждого тестового пользователя CF обучается только на событиях, предшествующих его тестовому периоду.
+`evaluate_cold_start_cases(cases, catalog, k=5)` оценивает onboarding-only профили без истории взаимодействий. `ColdStartCase` содержит профиль и ожидаемые релевантные ключи материалов. Эти кейсы являются синтетическими экспертными фикстурами, а не реальными наблюдениями пользователей.
 
 ## Ограничения
 
 - Веса гибридных моделей, CF shrinkage и порог рейтинга 4 — стартовые гипотезы, не обученные параметры.
-- События разных типов пока используются как бинарные позитивные сигналы; нужны отдельные срезы по типам событий.
-- TF-IDF индекс строится по текущему каталогу целиком; исторические снимки каталога не подготовлены.
-- Нет negative sampling и подтверждённой оценки качества на реальном PostgreSQL окружении в CI.
-- Численные выводы о качестве моделей не делаются до фактического запуска эксперимента.
-- Идентификаторы пользователей и IP не используются в признаках и не должны логироваться.
-- Закрытое содержимое платных материалов не извлекается.
+- События разных типов отражают разные стадии воронки; раздельные срезы не заменяют полноценную модель вероятности конверсии.
+- TF-IDF строится по текущему каталогу; исторические снимки каталога не подготовлены.
+- Cold-start benchmark зависит от качества вручную заданных кейсов и требует экспертной проверки.
+- Фактические метрики на реальной БД не заявляются до запуска эксперимента на разрешённой выгрузке.
+- UserId и IP не используются в признаках и не должны логироваться. Закрытое содержимое платных материалов не извлекается.
 
 Это исследовательский MVP, а не production-модель.
