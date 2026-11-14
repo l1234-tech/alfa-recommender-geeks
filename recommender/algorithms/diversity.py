@@ -63,7 +63,7 @@ def mmr_rerank(
             )
             return (1.0 - diversity_weight) * scores[candidate.key] - diversity_weight * redundancy
 
-        best = max(remaining, key=lambda item: (mmr_score(item), tuple(reversed(item.key))))
+        best = min(remaining, key=lambda item: (-mmr_score(item), item.key))
         selected.append(best)
         remaining.remove(best)
 

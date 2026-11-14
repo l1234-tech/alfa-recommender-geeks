@@ -7,13 +7,16 @@
 - `models.py` — контракты каталога, профиля и рекомендации; ключ объекта — `(item_type, item_id)`.
 - `data_processing/` — нормализация каталога, SQL-извлечение открытых метаданных и взаимодействий, построение профилей.
 - `algorithms/` — metadata baseline, TF-IDF, content hybrid и item-item collaborative filtering.
-- `ranking.py` — фильтрация недоступных, просмотренных и завершённых материалов.
+- `ranking.py` — фильтрация недоступных, просмотренных и завершённых материалов; опциональный MMR reranking.
+- `algorithms/diversity.py` — Jaccard-похожесть метаданных и Maximal Marginal Relevance.
 - `explanations.py` — объяснение рекомендаций и следующий шаг.
 - `evaluation/metrics.py` — Precision@K, Recall@K, NDCG@K и catalog coverage.
 - `evaluation/temporal.py` — temporal holdout с типизированной тестовой релевантностью и train-набором для CF.
 - `evaluation/compare.py` — сравнение четырёх стратегий, общие метрики и срезы по типам положительных событий.
 - `evaluation/cold_start.py` — benchmark onboarding-only профилей на вручную заданных тест-кейсах.
 - `evaluation/sensitivity.py` — validation-only перебор порога положительного рейтинга и параметров item-item CF.
+
+`recommend(..., diversity_weight=0.25)` включает MMR: чем выше вес, тем сильнее штраф за сходство с уже выбранными материалами. Значение `0.0` сохраняет исходное ранжирование и используется по умолчанию.
 
 ## Запуск тестов
 

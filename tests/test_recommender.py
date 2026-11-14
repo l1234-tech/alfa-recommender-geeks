@@ -19,6 +19,16 @@ class RecommenderTests(unittest.TestCase):
   p=UserProfile(seen_item_keys=frozenset({("article","seen")}),completed_item_keys=frozenset({("course","done")}))
   catalog=[CatalogItem("seen","article","Seen"),CatalogItem("done","course","Done"),CatalogItem("hidden","article","Hidden",is_available=False),CatalogItem("new","article","New")]
   self.assertEqual([r.item.item_id for r in recommend(p,catalog)],["new"])
+ def test_mmr_diversifies_recommendations(self):
+  p=UserProfile(topics=frozenset({"маркетинг"}))
+  a=CatalogItem("a","article","Маркетинг и продажи",topics=frozenset({"маркетинг","продажи"}))
+  b=CatalogItem("b","article","Продвижение и маркетинг",topics=frozenset({"маркетинг","продажи"}))
+  c=CatalogItem("c","course","Финансовое планирование",topics=frozenset({"финансы","бюджет"}))
+  result=recommend(p,[a,b,c],limit=2,strategy="baseline",diversity_weight=0.5)
+  self.assertEqual([r.item.item_id for r in result],["a","c"])
+ def test_invalid_diversity_weight(self):
+  with self.assertRaises(ValueError):
+   recommend(UserProfile(),[],diversity_weight=1.1)
  def test_limit(self):
   result=recommend(UserProfile(),[CatalogItem("b","article","B"),CatalogItem("a","article","A")],limit=1)
   self.assertEqual([r.item.item_id for r in result],["a"])
