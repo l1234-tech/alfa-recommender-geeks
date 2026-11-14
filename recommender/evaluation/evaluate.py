@@ -20,11 +20,11 @@ def evaluate_content_baseline(
 ) -> dict[str, float]:
     """Evaluate per-user temporal holdout and return aggregate metrics only."""
     splits = temporal_holdout(events)
-    recommendations: list[list[str]] = []
-    relevant_sets: list[set[str]] = []
+    recommendations: list[list[tuple[str, str]]] = []
+    relevant_sets: list[set[tuple[str, str]]] = []
     for split in splits:
         profile = build_user_profile(split.train_events, catalog, onboarding=onboarding)
         ranked = recommend(profile, catalog, limit=k)
-        recommendations.append([row.item.item_id for row in ranked])
-        relevant_sets.append(set(split.test_relevant_item_ids))
+        recommendations.append([row.item.key for row in ranked])
+        relevant_sets.append(set(split.test_relevant_item_keys))
     return aggregate_ranking_metrics(recommendations, relevant_sets, k=k)
