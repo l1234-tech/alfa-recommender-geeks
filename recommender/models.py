@@ -1,9 +1,7 @@
 """Typed, source-independent contracts for the recommendation MVP."""
 from __future__ import annotations
-
 from dataclasses import dataclass, field
-
-
+ItemKey = tuple[str, str]
 @dataclass(frozen=True)
 class CatalogItem:
     item_id: str
@@ -15,8 +13,9 @@ class CatalogItem:
     industries: frozenset[str] = field(default_factory=frozenset)
     is_available: bool = True
     url: str | None = None
-
-
+    @property
+    def key(self) -> ItemKey:
+        return (self.item_type.casefold(), self.item_id)
 @dataclass(frozen=True)
 class UserProfile:
     topics: frozenset[str] = field(default_factory=frozenset)
@@ -24,11 +23,9 @@ class UserProfile:
     industries: frozenset[str] = field(default_factory=frozenset)
     current_goal: str = ""
     preferred_types: frozenset[str] = field(default_factory=frozenset)
-    completed_item_ids: frozenset[str] = field(default_factory=frozenset)
-    seen_item_ids: frozenset[str] = field(default_factory=frozenset)
-    positive_item_ids: frozenset[str] = field(default_factory=frozenset)
-
-
+    completed_item_keys: frozenset[ItemKey] = field(default_factory=frozenset)
+    seen_item_keys: frozenset[ItemKey] = field(default_factory=frozenset)
+    positive_item_keys: frozenset[ItemKey] = field(default_factory=frozenset)
 @dataclass(frozen=True)
 class Recommendation:
     item: CatalogItem
