@@ -13,6 +13,7 @@
 - `evaluation/temporal.py` — temporal holdout с типизированной тестовой релевантностью и train-набором для CF.
 - `evaluation/compare.py` — сравнение четырёх стратегий, общие метрики и срезы по типам положительных событий.
 - `evaluation/cold_start.py` — benchmark onboarding-only профилей на вручную заданных тест-кейсах.
+- `evaluation/sensitivity.py` — validation-only перебор порога положительного рейтинга и параметров item-item CF.
 
 ## Запуск тестов
 
@@ -25,6 +26,8 @@ python -m unittest discover -s tests -v
 ## Офлайн-эксперименты
 
 `compare_content_models(events, catalog, k=10)` сравнивает metadata baseline, TF-IDF hybrid, item-item CF и content+CF hybrid на одинаковых временных разбиениях. Результат содержит общие Precision@K, Recall@K, NDCG@K, число пользователей и catalog coverage; также добавляются отдельные метрики по типам положительных событий.
+
+`evaluate_cf_sensitivity(events, catalog, ...)` сравнивает item-item CF и content+CF hybrid на сетке порога рейтинга, min co-occurrence и shrinkage. Это инструмент выбора параметров на temporal validation, не финальная test-оценка.
 
 `evaluate_cold_start_cases(cases, catalog, k=5)` оценивает onboarding-only профили без истории взаимодействий. `ColdStartCase` содержит профиль и ожидаемые релевантные ключи материалов. Эти кейсы являются синтетическими экспертными фикстурами, а не реальными наблюдениями пользователей.
 
