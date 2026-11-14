@@ -6,7 +6,7 @@ from collections.abc import Callable, Sequence
 
 from recommender.models import CatalogItem
 
-_TOKEN_RE = re.compile(r"[\\w-]+", re.UNICODE)
+_TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
 
 
 def item_features(item: CatalogItem) -> frozenset[str]:
