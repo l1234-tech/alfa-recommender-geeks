@@ -19,12 +19,18 @@ def recommend(
     tfidf_index: TfidfIndex | None = None,
     collaborative_index: ItemItemIndex | None = None,
     diversity_weight: float = 0.0,
+    tfidf_weight: float = 0.65,
+    content_weight: float = 0.5,
 ) -> list[Recommendation]:
     strategies = {"baseline", "hybrid", "collaborative", "content_cf_hybrid"}
     if limit < 1:
         return []
     if not 0.0 <= diversity_weight <= 1.0:
         raise ValueError("diversity_weight must be between 0 and 1")
+    if not 0.0 <= tfidf_weight <= 1.0:
+        raise ValueError("tfidf_weight must be between 0 and 1")
+    if not 0.0 <= content_weight <= 1.0:
+        raise ValueError("content_weight must be between 0 and 1")
     if strategy not in strategies:
         raise ValueError(f"strategy must be one of: {', '.join(sorted(strategies))}")
     if strategy in {"hybrid", "content_cf_hybrid"} and tfidf_index is None:
@@ -37,14 +43,14 @@ def recommend(
             return score_item(profile, item)
         if strategy == "hybrid":
             assert tfidf_index is not None
-            return score_hybrid(profile, item, tfidf_index)
+            return score_hybrid(profile, item, tfidf_index, tfidf_weight=tfidf_weight)
         assert collaborative_index is not None
         cf = collaborative_index.score(profile, item)
         if strategy == "collaborative":
             return cf
         assert tfidf_index is not None
-        content = score_hybrid(profile, item, tfidf_index)
-        return content if cf <= 0 else 0.5 * content + 0.5 * cf
+        content = score_hybrid(profile, item, tfidf_index, tfidf_weight=tfidf_weight)
+        return content if cf <= 0 else content_weight * content + (1.0 - content_weight) * cf
 
     candidates = [
         item for item in catalog
