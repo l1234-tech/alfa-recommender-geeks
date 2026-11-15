@@ -10,9 +10,9 @@
 - `ranking.py` — фильтрация недоступных, просмотренных и завершённых материалов; опциональный MMR reranking.
 - `algorithms/diversity.py` — Jaccard-похожесть метаданных и Maximal Marginal Relevance.
 - `explanations.py` — объяснение рекомендаций и следующий шаг.
-- `evaluation/metrics.py` — Precision@K, Recall@K, NDCG@K и catalog coverage.
+- `evaluation/metrics.py` — Precision@K, Recall@K, NDCG@K, catalog coverage, Intra-List Diversity и разнообразие тем/типов.
 - `evaluation/temporal.py` — temporal holdout с типизированной тестовой релевантностью и train-набором для CF.
-- `evaluation/compare.py` — сравнение четырёх стратегий, общие метрики и срезы по типам положительных событий.
+- `evaluation/compare.py` — сравнение четырёх базовых стратегий и MMR-вариантов на одинаковых temporal validation splits; ranking, coverage, diversity и срезы по типам событий.
 - `evaluation/cold_start.py` — benchmark onboarding-only профилей на вручную заданных тест-кейсах.
 - `evaluation/sensitivity.py` — validation-only перебор порога положительного рейтинга и параметров item-item CF.
 
@@ -28,7 +28,7 @@ python -m unittest discover -s tests -v
 
 ## Офлайн-эксперименты
 
-`compare_content_models(events, catalog, k=10)` сравнивает metadata baseline, TF-IDF hybrid, item-item CF и content+CF hybrid на одинаковых временных разбиениях. Результат содержит общие Precision@K, Recall@K, NDCG@K, число пользователей и catalog coverage; также добавляются отдельные метрики по типам положительных событий.
+`compare_content_models(events, catalog, k=10, diversity_weights=(0.15, 0.25, 0.35))` сравнивает четыре базовые стратегии и MMR-варианты content+CF hybrid на одинаковых temporal validation splits. Для каждой стратегии считаются Precision@K, Recall@K, NDCG@K, catalog coverage, Intra-List Diversity и среднее число уникальных тем/типов в списке.
 
 `evaluate_cf_sensitivity(events, catalog, ...)` сравнивает item-item CF и content+CF hybrid на сетке порога рейтинга, min co-occurrence и shrinkage. Это инструмент выбора параметров на temporal validation, не финальная test-оценка.
 
