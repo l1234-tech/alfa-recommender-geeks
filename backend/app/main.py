@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.routes.recommendations import router as recommendations_router
+from .api.routes.recommendations import router as recommendations_router
 
 app = FastAPI(
     title="Alfa Course Recommender API",

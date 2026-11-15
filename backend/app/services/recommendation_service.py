@@ -1,15 +1,15 @@
 """Orchestration: turn an API request into a validated recommendation response."""
 from __future__ import annotations
 
-from app.core.config import settings
-from app.schemas.recommendation import (
+from ..core.config import settings
+from ..schemas.recommendation import (
     RecommendationItem,
     RecommendationMeta,
     RecommendationRequest,
     RecommendationResponse,
 )
-from app.services import ml_adapter
-from app.services.catalog_provider import get_materials
+from . import ml_adapter
+from .catalog_provider import get_materials
 
 
 def get_recommendations(request: RecommendationRequest) -> RecommendationResponse:

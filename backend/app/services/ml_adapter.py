@@ -12,8 +12,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.schemas.recommendation import HistoryEvent, UserProfileIn
-from app.services.sample_catalog import Material
+from ..schemas.recommendation import HistoryEvent, UserProfileIn
+from .sample_catalog import Material
 
 _TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
 
@@ -113,15 +113,26 @@ def _rank_with_engine(materials, fields, limit, strategy) -> list[Ranked]:
         )
         for m in materials
     ]
+    # The engine suppresses items by typed (item_type, item_id) keys, so map the
+    # history ids to keys using the catalog; ids absent from the catalog cannot
+    # match any item and are skipped.
+    seen_keys = frozenset(
+        (by_id[mid].material_type.casefold(), mid)
+        for mid in fields["seen_item_ids"]
+        if mid in by_id
+    )
     profile = UserProfile(
         topics=frozenset(fields["topics"]),
         tags=frozenset(fields["tags"]),
         industries=frozenset(fields["industries"]),
         current_goal=fields["current_goal"],
         preferred_types=frozenset(fields["preferred_types"]),
-        seen_item_ids=frozenset(fields["seen_item_ids"]),
+        seen_item_keys=seen_keys,
     )
-    results = _engine_recommend(profile, catalog, limit=limit, strategy=strategy)
+    # We do not build a collaborative index here, so only content strategies are
+    # passed to the engine; anything else degrades to the transparent baseline.
+    engine_strategy = strategy if strategy in {"baseline", "hybrid"} else "baseline"
+    results = _engine_recommend(profile, catalog, limit=limit, strategy=engine_strategy)
     return [
         Ranked(
             material=by_id[r.item.item_id],

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.schemas.recommendation import RecommendationRequest, RecommendationResponse
-from app.services.recommendation_service import get_recommendations
+from ...schemas.recommendation import RecommendationRequest, RecommendationResponse
+from ...services.recommendation_service import get_recommendations
 
 router = APIRouter(prefix="/api/v1", tags=["recommendations"])
 

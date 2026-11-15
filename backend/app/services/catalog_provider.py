@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 import os
 
-from app.services import ml_adapter
-from app.services.sample_catalog import Material, get_catalog
+from . import ml_adapter
+from .sample_catalog import Material, get_catalog
 
 logger = logging.getLogger(__name__)
 
