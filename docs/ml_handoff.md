@@ -189,3 +189,132 @@ recommendations = recommend(
 6. Не считать score вероятностью и не показывать закрытые поля каталога.
 
 Этот документ фиксирует ML-сторону интерфейса. Реализация сериализации, HTTP-контракта, endpoint, интеграционных тестов и deployment остаётся за соответствующими участниками команды.
+
+## 9. Минимальный сценарий подключения
+
+Ниже последовательность вызовов для backend-ответственного. Она использует только публичные Python-контракты ML-пакета; создание HTTP endpoint и преобразование HTTP-запроса в эти структуры остаётся на backend.
+
+### 9.1 Подготовить каталог
+
+Backend передаёт ML только доступные для рекомендаций поля. Не передавайте закрытое тело платного материала.
+
+```python
+from recommender.data_processing.catalog import normalize_item
+
+catalog = [
+    normalize_item(row)
+    for row in catalog_rows
+]
+```
+
+Каждая строка должна содержать `item_id`, `item_type`, `title`. Допустимые дополнительные поля: `description`, `topics`, `tags`, `industries`, `is_available`, `url`. Для отсутствующего `is_available` используется `True`; источник данных должен заранее исключить материалы, которые нельзя показывать этому пользователю.
+
+### 9.2 Собрать профиль из onboarding
+
+```python
+from recommender.models import UserProfile
+
+onboarding = UserProfile(
+    topics=frozenset(onboarding_topics),
+    tags=frozenset(onboarding_tags),
+    industries=frozenset(onboarding_industries),
+    current_goal=current_goal or "",
+    preferred_types=frozenset(preferred_types),
+)
+```
+
+Сопоставление ответов формы с topics/tags/industries/current_goal должно быть согласовано между командами. В текущем ML-контракте нет отдельных полей для стадии бизнеса и уровня опыта.
+
+### 9.3 Выбрать режим рекомендаций
+
+**Cold start / нет доступной истории:**
+
+```python
+from recommender.ranking import recommend
+
+recommendations = recommend(
+    onboarding,
+    catalog,
+    limit=10,
+    strategy="hybrid",
+)
+```
+
+**Есть разрешённая история взаимодействий:**
+
+```python
+from recommender.algorithms.collaborative import ItemItemIndex
+from recommender.data_processing.profiles import build_user_profile
+from recommender.ranking import recommend
+
+profile = build_user_profile(
+    user_events,
+    catalog,
+    onboarding=onboarding,
+)
+collaborative_index = ItemItemIndex.fit(
+    allowed_training_events,
+    catalog,
+)
+recommendations = recommend(
+    profile,
+    catalog,
+    limit=10,
+    strategy="content_cf_hybrid",
+    collaborative_index=collaborative_index,
+)
+```
+
+`user_events` и `allowed_training_events` — объекты `UserInteraction` из ML data-processing слоя. Не подменяйте их произвольными просмотрами: правила положительных событий описаны в `docs/interaction_pipeline.md`. Для collaborative-стратегии индекс обязателен; его построение и кэширование — ответственность интеграционного слоя, который должен учитывать обновление каталога и истории.
+
+### 9.4 Передать рекомендации в API/UI
+
+Каждый элемент результата содержит `item`, `score`, `reason`, `next_step`. Dataclass и `frozenset` не следует напрямую отдавать как JSON: backend должен явно сериализовать поля. Рекомендуемая публичная форма:
+
+```python
+def recommendation_to_payload(rec):
+    item = rec.item
+    return {
+        "item": {
+            "id": item.item_id,
+            "type": item.item_type,
+            "title": item.title,
+            "description": item.description,
+            "topics": sorted(item.topics),
+            "tags": sorted(item.tags),
+            "industries": sorted(item.industries),
+            "url": item.url,
+        },
+        "score": rec.score,
+        "reason": rec.reason,
+        "next_step": rec.next_step,
+    }
+```
+
+Это пример сериализации для согласования, не функция, уже поставляемая ML-пакетом. Не включайте в payload `user_id`, историю событий, внутренние CF-данные или закрытые поля исходной БД. UI должен использовать `reason` и `next_step`; `score` предназначен для внутреннего ранжирования и не является вероятностью.
+
+### 9.5 Ошибки, которые должен обработать вызывающий слой
+
+- Неизвестная стратегия — `ValueError`.
+- Для `collaborative` и `content_cf_hybrid` без `collaborative_index` — `ValueError`.
+- Некорректные веса вне диапазона [0, 1] — `ValueError`.
+- Пустой каталог или отсутствие подходящих кандидатов — пустой список.
+- Меньше кандидатов, чем `limit` — список фактической длины, без искусственного заполнения.
+
+Backend должен валидировать вход, обрабатывать эти ошибки и возвращать стабильный HTTP-ответ. ML не определяет HTTP status codes.
+
+## 10. Критерии готовности интеграции
+
+Перед демонстрацией ответственный за интеграцию должен подтвердить:
+
+- [ ] Каталог маппится в `CatalogItem` и содержит только доступные открытые поля.
+- [ ] Onboarding маппится в существующие поля `UserProfile`; неизвестные поля не передаются как будто ML их использует.
+- [ ] В истории нет анонимных рейтингов, неразрешённых просмотров и неподтверждённых позитивных сигналов.
+- [ ] Для cold start вызывается content strategy; для CF заранее строится индекс из разрешённой истории.
+- [ ] API явно сериализует dataclasses/sets и не раскрывает внутренние идентификаторы пользователя.
+- [ ] UI отображает название, тип, ссылку, объяснение и следующий шаг; score не показывается как вероятность.
+- [ ] Проверены пустой профиль, пустой каталог, недоступный материал и отсутствие CF-соседей.
+- [ ] После подключения выполнен интеграционный smoke test на синтетических данных.
+
+Эти пункты — handoff checklist, а не утверждение, что интеграционные проверки уже выполнены.
+
