@@ -45,7 +45,9 @@ class RecommendationItem(BaseModel):
     title: str
     material_type: str
     topic: str | None = None
-    is_paid: bool = False
+    is_paid: bool | None = None
+    description: str | None = None
+    url: str | None = None
     score: float
     reasons: list[str]
     next_step: str
@@ -56,6 +58,7 @@ class RecommendationMeta(BaseModel):
     strategy: str
     limit: int
     returned: int
+    catalog_source: str = "sample"
 
 
 class RecommendationResponse(BaseModel):

@@ -1,129 +1,79 @@
-# Alfa Recommender — персональные рекомендации «Альфа-Курса»
+# Alfa Recommender
 
-Рекомендательная система для образовательной платформы «Альфа-Курс» (трек
-*Персональные рекомендации образовательных материалов*). Подбирает
-предпринимателю материалы из каталога платформы под его профиль и задачу,
-**ранжирует**, **объясняет каждую рекомендацию** и предлагает **следующий шаг**.
-Поддерживает **холодный старт** (пустой профиль) и неполные данные.
+Подбор образовательных материалов под задачу бизнеса. Основной интерфейс — React + TypeScript + Vite; FastAPI вызывает recommender.ranking.recommend над каталогом. Streamlit сохранён отдельно в tools/streamlit как вспомогательный инструмент.
 
-> Ссылка на репозиторий — на первом слайде презентации (`presentation/`).
-> Для приватного доступа жюри: аккаунт `hack-and-change-2026`.
+## Основной запуск — Docker
 
-## Что внутри
+Нужен работающий Docker Engine/Compose:
 
-| Компонент | Назначение | Стек |
-|---|---|---|
-| `backend/` | HTTP API: валидация профиля/истории, вызов движка, стабильный контракт | FastAPI, Pydantic |
-| `recommender/` | Подготовка данных, признаки, ранжирование (baseline + TF-IDF hybrid), объяснения, офлайн-оценка | Python stdlib, psycopg |
-| `frontend/` | Интерфейс: ввод профиля и карточки рекомендаций | (см. статус ниже) |
-| `analytics/`, `tests/` | Тестовые профили, QA, метрики качества | Python |
-| `docs/` | API-контракт, архитектура, план проверки эффекта | — |
-
-## Архитектура
-
-```
-Пользователь → Frontend → Backend API (POST /api/v1/recommendations)
-                              │
-                              ├─ catalog_provider ──► PostgreSQL (дамп «Альфа-Курса»)
-                              │        (ML-загрузчик recommender/data_processing)
-                              └─ ml_adapter ────────► recommender.ranking.recommend()
-                                                       baseline / TF-IDF hybrid
-```
-
-- Backend владеет подключением к БД и вызывает движок через единый интерфейс.
-- Каталог берётся из предоставленного дампа; без БД сервис работает на
-  демо-каталоге (разработка/проверка без приватных данных).
-- Устойчивость: если движок недоступен или падает — ответ отдаётся встроенным
-  прозрачным overlap-скорером того же формата, API не возвращает 500.
-
-## Запуск одной командой
-
-```bash
+```sh
 docker compose up --build
 ```
 
-- Backend (Swagger UI): http://localhost:8000/docs
-- Health: http://localhost:8000/health
-- Поднимает `db` (PostgreSQL) и `backend`; `db` автоматически восстанавливает
-  дамп, если он положен в `./data/` (см. ниже).
+- React: http://localhost:8080 (nginx, production build).
+- API / Swagger: http://localhost:8000/docs; health: /health.
+- PostgreSQL 16: localhost:5433, база alfa_course, dev user/password alfa/alfa.
+- nginx передаёт /api к backend:8000 внутри сети; браузер использует свой origin.
+- Существующий volume alfa_pgdata сохраняется. Веб-интерфейс не отправляет запросы к внутреннему имени backend.
 
-Остановка и сброс БД: `docker compose down -v`.
+## Локальный запуск без Docker
 
-## Входные данные
+Python 3.11–3.13, Node.js 22.12+ / 24 LTS, npm. Из корня (PowerShell):
 
-Основа рекомендаций — предоставленный **PostgreSQL-дамп «Альфа-Курса»** (в Git
-не коммитится). Положите его как `./data/<name>.sql` — сервис `db` восстановит
-дамп при первом старте, backend загрузит каталог запросом
-`recommender/data_processing/catalog.sql` (только открытые метаданные
-материалов: тип, заголовок, описание, темы, теги, отрасли, доступность; без
-приватного содержимого и идентификаторов пользователей). Подробно — в
-[`data/README.md`](data/README.md). Без дампа используется демо-каталог, и
-сервис всё равно запускается.
+```powershell
+python -m venv .venv
+./.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
+./.venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
 
-## Переменные окружения
+В другом терминале:
 
-Секреты не коммитятся: `.env.example` → `.env` (при необходимости). Для
-`docker compose` значения по умолчанию заданы и правок не требуют.
+```sh
+cd frontend
+npm ci
+npm run dev
+```
 
-| Переменная | По умолчанию | Назначение |
-|---|---|---|
-| `DATABASE_URL` | задаётся compose (`postgresql://alfa:alfa@db:5432/alfa_course`) | Подключение к каталогу. Не postgres/не задано → демо-каталог. |
-| `RECO_STRATEGY` | `baseline` | Стратегия движка: `baseline` или `hybrid`. |
-| `RECO_DEFAULT_LIMIT` | `5` | Число рекомендаций по умолчанию. |
-| `RECO_MAX_LIMIT` | `20` | Жёсткий предел числа рекомендаций. |
+React: http://localhost:5173. Vite проксирует /api на localhost:8000. Пакеты recommender и analytics доступны из корня; в backend Dockerfile они включены в образ, а не требуют ручного volume.
+В Linux/macOS используйте .venv/bin/python вместо Windows-пути.
 
-## Порты
+## Каталог и режимы
 
-| Сервис | Порт |
-|---|---|
-| backend (API/Swagger) | `8000` |
-| db (PostgreSQL) | `5432` |
+- Обычный npm run dev / compose: настоящий HTTP API и движок. Без настроенной БД или при ошибке загрузки backend использует sample из 12 материалов; UI честно помечает «Подборка по учебному каталогу».
+- DATABASE_URL (только backend) подключает предоставленную PostgreSQL-базу. Загрузчик читает публичные метаданные через recommender/data_processing/catalog.sql; события и пользовательские таблицы для этого API не читаются. Каталог кэшируется, после импорта перезапустите backend.
+- Для нового compose volume поместите совместимый plain SQL в data/ до первого запуска. Для custom backup используйте pg_restore соответствующей версии в отдельную базу/volume, затем настройте DATABASE_URL. Не удаляйте существующую БД и не используйте команды сброса volume. Подробности: data/README.md.
+- Дамп и секреты не коммитятся. В рабочем data/ дамп не предоставлен.
+- npm run dev:mock — только автономные frontend fixtures, без вызова движка; пометка «Пример подборки». Этот режим не нужен при запущенном backend.
 
-## Зависимости
+## Проверки
 
-Зафиксированы в `backend/requirements.txt` (runtime: FastAPI, Uvicorn, Pydantic,
-psycopg). Движок `recommender/` реализован на стандартной библиотеке Python.
+```powershell
+./.venv/Scripts/python.exe -m pytest -q
+./.venv/Scripts/python.exe tools/smoke_http.py
+```
 
-## Внешние API
+smoke_http требует работающие backend:8000 и Vite:5173 (реальный режим), проверяет OpenAPI, proxy, цели, cold start, формат и исключение истории.
 
-Решение работает **полностью локально**: ранжирование и объяснения считаются на
-стороне `recommender/` без обращения к внешним LLM/сервисам. Внешние API-ключи и
-VPN для проверки не требуются.
+```sh
+cd frontend
+npm run build
+npm run typecheck
+npm run lint
+npm test
+```
 
-## Пошаговый сценарий проверки
+Для React-тестов с настоящим HTTP (PowerShell, backend и Vite запущены):
 
-1. `docker compose up --build` — поднять стек.
-2. Открыть http://localhost:8000/docs и выполнить `POST /api/v1/recommendations`.
-3. **Профиль под задачу.** Тело:
-   ```json
-   {"user_profile":{"business_stage":"early","industry":"retail","current_goal":"marketing","experience_level":"beginner","preferred_formats":["course","article"]},"history":[],"limit":5}
-   ```
-   Ожидаемо: материалы по маркетингу вверху, у каждого — `reasons` и `next_step`,
-   `metadata.cold_start = false`.
-4. **Холодный старт.** Тело `{}` → `cold_start = true`, непустая стартовая подборка.
-5. **Учёт истории.** Передать `history` с `material_id` — этот материал не
-   появляется в выдаче повторно.
-6. **Тесты:** `cd backend && pip install -r requirements.txt && python -m pytest -q`.
+```powershell
+$env:VITE_LIVE_API_URL="http://127.0.0.1:5173"
+npm test -- src/live.test.tsx
+```
 
-Контракт запроса/ответа: [`docs/api.md`](docs/api.md).
+Логи backend различают path=engine и path=builtin. RECO_STRATEGY=baseline (по умолчанию) либо hybrid. Fallback сохраняется, но не считается доказательством вызова движка. Collaborative filtering API-путь сейчас не использует.
 
-## Качество и проверка эффекта
+## Ограничения и материалы команды
 
-Офлайн-оценка (Precision@K / Recall@K / NDCG@K, сравнение с бейзлайном «по
-совпадению темы») — `recommender/evaluation`. План проверки влияния на конверсию
-после внедрения (офлайн → онлайн A/B) — [`docs/ab_test_plan.md`](docs/ab_test_plan.md).
-
-## Известные ограничения
-
-- Выгрузка признака платности (`is_paid`) и основного `topic` в `catalog.sql`
-  пока не реализована — на стороне API это помечается и согласуется с ML.
-- Веса baseline не обучены; нет collaborative filtering в проде API-пути.
-- Для платных материалов закрытое содержимое не раскрывается; ведём на страницу
-  материала/покупки по предоставленным ссылкам.
-- Исходный датасет и его копии в репозиторий не коммитятся.
-
-## Состав решения для сдачи
-
-Исходный код (`backend/`, `recommender/`, `frontend/`), `README.md`,
-`Dockerfile` + `compose.yaml` + `.dockerignore`, зафиксированные зависимости,
-`.env.example` без секретов, презентация в `presentation/`.
+is_paid=null при неизвестной платности. description и безопасный абсолютный url передаются только при наличии; sample не содержит работающих ссылок. Форма истории пока не собирает, API history принимает и исключает просмотренное. Все поля профиля необязательны. Настроенные форматы — предпочтение, не фильтр.
+Качество на предоставленной выгрузке и открытие её URL требуют самой выгрузки; sample-прогон не доказывает качество на реальных данных.
+Контракт и расширения этой ветки: docs/api.md. Архитектура: docs/architecture.md. Исследования и метрики: recommender/README.md, analytics/README.md, docs/experiments.md. Презентация: presentation/outline.md.
+Аудит веток, сохранение React и проверенные ограничения: docs/react-integration.md.

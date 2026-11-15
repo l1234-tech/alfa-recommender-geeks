@@ -19,7 +19,7 @@ class Material:
     topics: frozenset[str] = field(default_factory=frozenset)
     tags: frozenset[str] = field(default_factory=frozenset)
     industries: frozenset[str] = field(default_factory=frozenset)
-    is_paid: bool = False
+    is_paid: bool | None = None
     is_available: bool = True
     url: str | None = None
 
@@ -80,7 +80,7 @@ _CATALOG: list[Material] = [
     _m(material_id="mat-ops-001", material_type="course", topic="operations",
        title="Организация ежедневной работы соло-фаундера",
        description="Системный курс по процессам, планированию и делегированию.",
-       topics=["operations", "productivity"], tags=["scaling", "advanced"],
+       topics=["team", "operations", "productivity"], tags=["scaling", "advanced"],
        industries=["any"], is_paid=True, url="/materials/mat-ops-001"),
     _m(material_id="mat-ops-002", material_type="webinar", topic="operations",
        title="Вебинар: автоматизация рутины в малом бизнесе",

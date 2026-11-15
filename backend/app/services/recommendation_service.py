@@ -9,7 +9,8 @@ from ..schemas.recommendation import (
     RecommendationResponse,
 )
 from . import ml_adapter
-from .catalog_provider import get_materials
+from .catalog_provider import get_materials, catalog_source
+from urllib.parse import urlsplit
 
 
 def get_recommendations(request: RecommendationRequest) -> RecommendationResponse:
@@ -31,6 +32,8 @@ def get_recommendations(request: RecommendationRequest) -> RecommendationRespons
         RecommendationItem(
             material_id=r.material.material_id,
             title=r.material.title,
+            description=r.material.description or None,
+            url=public_url(r.material.url) if catalog_source() == "database" else None,
             material_type=r.material.material_type,
             topic=r.material.topic,
             is_paid=r.material.is_paid,
@@ -48,5 +51,18 @@ def get_recommendations(request: RecommendationRequest) -> RecommendationRespons
             strategy=settings.strategy,
             limit=limit,
             returned=len(items),
+            catalog_source=catalog_source(),
         ),
     )
+
+
+def public_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        parsed = urlsplit(value)
+        if parsed.scheme.lower() in {"https", "http"} and parsed.hostname and not parsed.username and not parsed.password:
+            return value
+    except ValueError:
+        pass
+    return None

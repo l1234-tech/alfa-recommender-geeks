@@ -1,8 +1,6 @@
-__pycache__/
-*.py[cod]
-.venv/
-venv/
+node_modules
+dist
+.npm-cache
 .env
 .env.*
-*.log
-.DS_Store
+.git

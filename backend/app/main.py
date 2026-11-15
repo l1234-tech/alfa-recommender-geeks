@@ -1,3 +1,5 @@
+import logging
+logging.basicConfig(level=logging.INFO)
 from fastapi import FastAPI
 
 from .api.routes.recommendations import router as recommendations_router

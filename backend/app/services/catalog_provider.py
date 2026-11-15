@@ -17,6 +17,11 @@ from .sample_catalog import Material, get_catalog
 logger = logging.getLogger(__name__)
 
 _cache: list[Material] | None = None
+_source = "sample"
+
+def catalog_source() -> str:
+    return _source
+
 
 
 def get_materials(*, force_reload: bool = False) -> list[Material]:
@@ -29,11 +34,14 @@ def get_materials(*, force_reload: bool = False) -> list[Material]:
 
 
 def _load() -> list[Material]:
+    global _source
+    _source = "sample"
     url = os.getenv("DATABASE_URL", "").strip()
     if url.startswith(("postgres://", "postgresql://")):
         try:
             items = _load_from_db(url)
             if items:
+                _source = "database"
                 logger.info("Catalog loaded from database: %d materials", len(items))
                 return items
             logger.warning("Database catalog is empty; falling back to demo catalog")
@@ -69,7 +77,7 @@ def _to_material(item) -> Material:
         topics=topics,
         tags=frozenset(item.tags),
         industries=frozenset(item.industries),
-        is_paid=False,
+        is_paid=None,
         is_available=item.is_available,
         url=item.url,
     )

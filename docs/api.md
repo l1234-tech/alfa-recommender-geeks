@@ -44,6 +44,8 @@ TypeScript-типы.
       "material_type": "course",
       "topic": "marketing",
       "is_paid": true,
+      "description": "Базовый курс по привлечению первых клиентов.",
+      "url": null,
       "score": 0.42,
       "reasons": ["совпадают выбранные темы", "материал связан с вашей отраслью"],
       "next_step": "Посмотреть программу курса и оценить требуемое время на обучение."
@@ -53,7 +55,8 @@ TypeScript-типы.
     "cold_start": false,
     "strategy": "baseline",
     "limit": 5,
-    "returned": 1
+    "returned": 1,
+    "catalog_source": "sample"
   }
 }
 ```
@@ -71,7 +74,7 @@ TypeScript-типы.
 Backend вызывает `recommender.ranking.recommend(profile, catalog, limit, strategy)`
 через `app/services/ml_adapter.py` над каталогом в памяти (БД для MVP не нужна).
 Если пакет `recommender` недоступен при импорте, используется встроенный
-overlap-скорер с эквивалентным поведением — API продолжает работать.
+overlap-скорер с тем же форматом ответа — API продолжает работать.
 
 Стратегия ранжирования задаётся переменной `RECO_STRATEGY` (`baseline` | `hybrid`).
 
@@ -83,3 +86,16 @@ overlap-скорер с эквивалентным поведением — API 
 > Фактические значения `business_stage`, `experience_level`, `industry`,
 > `preferred_formats`, `event_type` и типы материалов сверяются с реальной
 > выгрузкой и при расхождении обновляются согласованно всей командой.
+
+
+## Расширения локальной integration/react-product
+Схема и React обновлены синхронно в этой ветке; это интеграционные изменения для ревью команды, не утверждение о внешнем согласовании.
+- description: необязательная строка/null из публичного описания каталога.
+- url: необязательная строка/null. Передаются только абсолютные http/https без логина/пароля из database-каталога. Относительные URL без подтверждённого origin не достраиваются. В sample ссылки /materials/... фиктивны и не выдаются.
+- is_paid: boolean | null. null означает «неизвестно». SQL-загрузчик сейчас не извлекает Cost, поэтому database-материалы имеют null, а не false. Интерфейс не называет их бесплатными.
+- metadata.catalog_source: sample | database (в frontend mock — frontend_mock). Позволяет отличить sample от предоставленного каталога. Источник меняется только после успешной загрузки непустого каталога из БД.
+
+Профиль принимает необязательные строки, закрытых enum схема не задаёт. UI использует marketing/finance/team; ранжирующий адаптер нормализует темы с помощью analytics.config.THEME_MAP, включая «Маркетинг», «Финансы и учет», «Управление командой». Коды отрасли/стадии/опыта приводятся к нижнему регистру и известным эквивалентам в backend/app/services/normalization.py. Неизвестные значения сохраняются, признаки не придумываются.
+Форматы: course, article, document, webinar, podcast; каталог также может содержать lesson, calculator, template, checklist. Предпочтительный формат — сигнал ранжирования, а не жёсткий фильтр.
+
+В stdout backend пишется ranking path=engine либо path=builtin, стратегия и число материалов; тексты профиля и секреты не логируются. Fallback сохраняется при ошибке импорта/исполнения либо RECO_FORCE_BUILTIN=true. metadata.strategy — настроенная стратегия, фактический путь подтверждается логом. API подключает baseline или hybrid (TF-IDF + content); collaborative index здесь не строится.

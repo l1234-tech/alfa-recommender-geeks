@@ -14,6 +14,7 @@ from pathlib import Path
 
 from ..schemas.recommendation import HistoryEvent, UserProfileIn
 from .sample_catalog import Material
+from .normalization import normalize_topics, normalize_values, goal_text
 
 _TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
 
@@ -60,20 +61,20 @@ def build_profile_fields(profile: UserProfileIn, history: list[HistoryEvent]) ->
     industries: set[str] = set()
 
     if profile.current_goal:
-        topics.add(profile.current_goal.strip().casefold())
+        topics.update(normalize_topics({profile.current_goal}))
     if profile.industry:
-        industries.add(profile.industry.strip().casefold())
+        industries.update(normalize_values({profile.industry}))
     if profile.business_stage:
-        tags.add(profile.business_stage.strip().casefold())
+        tags.update(normalize_values({profile.business_stage}))
     if profile.experience_level:
-        tags.add(profile.experience_level.strip().casefold())
+        tags.update(normalize_values({profile.experience_level}))
 
     seen = {e.material_id for e in history}
     return {
         "topics": topics,
         "tags": tags,
         "industries": industries,
-        "current_goal": (profile.current_goal or "").strip(),
+        "current_goal": goal_text(profile.current_goal),
         "preferred_types": {f.strip().casefold() for f in profile.preferred_formats},
         "seen_item_ids": seen,
     }
@@ -89,11 +90,14 @@ def rank(
 ) -> list[Ranked]:
     if RECOMMENDER_AVAILABLE and not force_builtin:
         try:
-            return _rank_with_engine(materials, fields, limit, strategy)
+            results = _rank_with_engine(materials, fields, limit, strategy)
+            logging.getLogger(__name__).info("ranking path=engine strategy=%s catalog_size=%d returned=%d", strategy, len(materials), len(results))
+            return results
         except Exception:
             # Never fail the request on an engine runtime error: degrade to the
             # transparent built-in scorer with the same response shape.
             logging.getLogger(__name__).exception("ML engine failed; using built-in scorer")
+    logging.getLogger(__name__).warning("ranking path=builtin forced=%s available=%s", force_builtin, RECOMMENDER_AVAILABLE)
     return _rank_builtin(materials, fields, limit)
 
 
@@ -105,9 +109,9 @@ def _rank_with_engine(materials, fields, limit, strategy) -> list[Ranked]:
             item_type=m.material_type,
             title=m.title,
             description=m.description,
-            topics=m.topics,
-            tags=m.tags,
-            industries=m.industries,
+            topics=normalize_topics(m.topics),
+            tags=normalize_values(m.tags),
+            industries=normalize_values(m.industries),
             is_available=m.is_available,
             url=m.url,
         )
@@ -158,9 +162,9 @@ def _rank_builtin(materials, fields, limit) -> list[Ranked]:
         if m.material_id in fields["seen_item_ids"] or not m.is_available:
             continue
         parts = [
-            _overlap(fields["topics"], m.topics),
-            _overlap(fields["tags"], m.tags),
-            _overlap(fields["industries"], m.industries),
+            _overlap(fields["topics"], normalize_topics(m.topics)),
+            _overlap(fields["tags"], normalize_values(m.tags)),
+            _overlap(fields["industries"], normalize_values(m.industries)),
         ]
         if fields["preferred_types"]:
             parts.append(float(m.material_type.casefold() in fields["preferred_types"]))
@@ -182,11 +186,11 @@ def _rank_builtin(materials, fields, limit) -> list[Ranked]:
 
 def _builtin_reasons(fields, goal_tokens, m: Material) -> list[str]:
     reasons: list[str] = []
-    if fields["topics"] & m.topics:
+    if fields["topics"] & normalize_topics(m.topics):
         reasons.append("совпадают выбранные темы")
-    if fields["industries"] & m.industries:
+    if fields["industries"] & normalize_values(m.industries):
         reasons.append("материал связан с вашей отраслью")
-    if fields["tags"] & m.tags:
+    if fields["tags"] & normalize_values(m.tags):
         reasons.append("подходит под вашу стадию и опыт")
     if goal_tokens & _tokens(m.title + " " + m.description):
         reasons.append("связан с вашей текущей задачей")

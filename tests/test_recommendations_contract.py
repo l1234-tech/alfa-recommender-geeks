@@ -13,6 +13,7 @@ import urllib.request
 import pytest
 
 from analytics.evaluate import load_profiles
+from analytics.recommenders import api_payload
 
 ENDPOINT = "/api/v1/recommendations"
 LIMIT = 5
@@ -49,14 +50,14 @@ def post():
         client = TestClient(app, raise_server_exceptions=False)
         func = lambda payload: client.post(ENDPOINT, json=payload)
 
-    probe = func({"user": {}, "history": [], "limit": LIMIT})
+    probe = func(api_payload({}, [], LIMIT))
     if probe.status_code in (404, 405):
         pytest.skip("эндпоинт рекомендаций ещё не реализован")
     return func
 
 
 def payload(user, history=None):
-    return {"user": user, "history": history or [], "limit": LIMIT}
+    return api_payload(user, history or [], LIMIT)
 
 
 def recs_of(resp):
@@ -75,7 +76,7 @@ def test_response_shape(post, profile):
     for r in recs:
         assert r.get("material_id")
         assert str(r.get("title") or "").strip(), "нет названия"
-        assert str(r.get("reason") or "").strip(), "нет объяснения"
+        assert isinstance(r.get("reasons"), list) and r["reasons"] and all(str(reason).strip() for reason in r["reasons"]), "нет объяснения"
         assert str(r.get("next_step") or "").strip(), "нет следующего шага"
         if "score" in r:
             assert isinstance(r["score"], (int, float))

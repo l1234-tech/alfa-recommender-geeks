@@ -35,4 +35,4 @@ def test_catalog_item_is_adapted_to_material():
     assert material.material_type == "course"
     assert material.topic in {"accounting", "taxes"}  # first sorted topic
     assert material.is_available is True
-    assert material.is_paid is False  # unknown from the current catalog query
+    assert material.is_paid is None  # unknown from the current catalog query

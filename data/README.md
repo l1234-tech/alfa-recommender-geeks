@@ -21,11 +21,7 @@ dump placed here is restored automatically on the **first** `docker compose up`.
    The `db` service restores the dump, then `backend` loads the catalog from it
    via the ML loader (`recommender/data_processing/catalog.sql`).
 
-3. To re-import after changing the dump, reset the DB volume first:
-
-   ```bash
-   docker compose down -v && docker compose up --build
-   ```
+3. Existing volumes are preserved. To import a different dump, create a separate database or a new named volume and restore there; do not remove the existing volume. Custom dumps need pg_restore with a matching PostgreSQL version. Never commit the dump.
 
 ## Notes
 

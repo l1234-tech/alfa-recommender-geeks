@@ -22,7 +22,7 @@ class TfidfTests(unittest.TestCase):
 
     def test_relevant_text_scores_higher(self):
         profile = UserProfile(topics=frozenset({"маркетинг"}), current_goal="продвижение продажи")
-        self.assertGreater(self.index.score(profile, "m1"), self.index.score(profile, "m2"))
+        self.assertGreater(self.index.score(profile, self.catalog[0]), self.index.score(profile, self.catalog[1]))
 
     def test_hybrid_score_is_bounded(self):
         profile = UserProfile(topics=frozenset({"маркетинг"}))

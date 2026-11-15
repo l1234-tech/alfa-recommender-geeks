@@ -54,13 +54,24 @@ def make_random(catalog, seed=1):
     return recommend
 
 
+def api_payload(user, history, k):
+    """Translate analytics' internal profile/event fixtures to the current HTTP contract."""
+    fields = {"stage": "business_stage", "experience": "experience_level"}
+    profile = {fields.get(key, key): value for key, value in user.items()
+               if key in {"stage", "experience", "business_stage", "experience_level", "industry", "current_goal", "preferred_formats"}}
+    if user.get("preferred_format"):
+        profile["preferred_formats"] = [user["preferred_format"]]
+    events = [{"material_id": h["material_id"], "event_type": h.get("event_type", h.get("event", "view"))} for h in history]
+    return {"user_profile": profile, "history": events, "limit": k}
+
+
 def make_api(url, timeout=10):
     def recommend(user, history, k):
-        body = json.dumps({"user": user, "history": history, "limit": k}).encode("utf-8")
+        body = json.dumps(api_payload(user, history, k)).encode("utf-8")
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-        return data.get("recommendations", [])
+        return [{**r, "reason": "; ".join(r.get("reasons", []))} for r in data.get("recommendations", [])]
     return recommend
 
 
