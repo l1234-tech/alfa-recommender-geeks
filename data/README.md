@@ -1,33 +1,55 @@
-# data/ — provided dataset (NOT committed)
+# Каталог «Альфа-Курса»
 
-The private Альфа-Курс dataset is **never** committed to git. This folder is
-mounted into the `db` service at `/docker-entrypoint-initdb.d`, so a plain SQL
-dump placed here is restored automatically on the **first** `docker compose up`.
+Храните предоставленный архив и любые выгрузки локально. Файлы данных в этой
+папке игнорируются Git. При запуске без архива API использует демо-каталог.
 
-## How to use
+Обычный `.sql` или `.sql.gz` в этой папке восстанавливается при первом запуске
+PostgreSQL с пустым Docker volume.
 
-1. Put the provided PostgreSQL dump here as a single `.sql` file, e.g.:
+## Восстановление предоставленного `.backup`
 
-   ```
-   data/alfa_course_dump.sql
-   ```
+Выполните команды из корня проекта. В базе `alfa_course` не должно быть ранее
+восстановленных таблиц. Для отдельной проверки с новым volume добавьте
+`-p alfa-db-check` после `docker compose` во всех командах и укажите свободные
+порты по [README](../README.md).
 
-2. Start the stack from the repo root:
+Нужен `pg_restore` версии 17 или новее, доступный в PATH. Замените
+`/path/to/alfa_course_hackathon.backup` на путь к своему файлу.
 
-   ```bash
-   docker compose up --build
-   ```
+```bash
+docker compose up -d --wait db
+(
+  set -e
+  set -o pipefail
+  archive=/path/to/alfa_course_hackathon.backup
+  restore_sql=$(mktemp)
+  trap 'rm -f "$restore_sql"' EXIT
+  pg_restore --no-owner --no-privileges --file=- "$archive" |
+    sed '1,30{/^SET transaction_timeout = 0;$/d;}' > "$restore_sql"
+  docker compose exec -T db psql -X -U alfa -d alfa_course \
+    --set=ON_ERROR_STOP=1 --single-transaction --file=- < "$restore_sql"
+)
+```
 
-   The `db` service restores the dump, then `backend` loads the catalog from it
-   via the ML loader (`recommender/data_processing/catalog.sql`).
+Строка `SET transaction_timeout` удаляется из заголовка SQL для совместимости с
+PostgreSQL 16. `psql` запускается внутри сервиса `db`, поэтому подключается к
+нужной базе даже при наличии PostgreSQL на компьютере.
 
-3. Existing volumes are preserved. To import a different dump, create a separate database or a new named volume and restore there; do not remove the existing volume. Custom dumps need pg_restore with a matching PostgreSQL version. Never commit the dump.
+После успешного восстановления запустите стек. Если Backend уже был запущен,
+перезапустите его, чтобы сбросить кэш каталога.
 
-## Notes
+```bash
+docker compose up -d --build --wait
+docker compose restart backend
+docker compose up -d --wait
+```
 
-- Only `*.sql` / `*.sql.gz` / `*.sh` files run on init. This `README.md` is ignored.
-- If the dump is in PostgreSQL **custom** format (`pg_dump -Fc`, `.dump`/`.backup`),
-  it won't auto-restore — restore it manually with `pg_restore` into the `db`
-  service, or convert it to plain SQL.
-- No dump present → the DB is empty and the backend falls back to its demo
-  catalog, so the service still runs.
+Проверьте API одним запросом:
+
+```bash
+curl -fsS http://localhost:8000/api/v1/recommendations \
+  -H 'Content-Type: application/json' -d '{"limit":1}'
+```
+
+При загрузке из PostgreSQL в `metadata.catalog_source` будет `database`.
+Значение `sample` означает демо-каталог.
