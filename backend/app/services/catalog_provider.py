@@ -60,14 +60,12 @@ def _load_from_db(url: str) -> list[Material]:
 
     with psycopg.connect(url) as connection:
         items = load_catalog(connection)
-    return [_to_material(item) for item in items]
+    return [_to_material(item) for item in items if item.is_available]
 
 
 def _to_material(item) -> Material:
     """Adapt the ML `CatalogItem` to the backend `Material` used in responses."""
     topics = frozenset(item.topics)
-    # catalog.sql does not expose Cost yet, so paid/free is unknown from the DB
-    # path. Primary topic is the first topic label if any, else the type.
     return Material(
         material_id=item.item_id,
         material_type=item.item_type,
@@ -77,7 +75,7 @@ def _to_material(item) -> Material:
         topics=topics,
         tags=frozenset(item.tags),
         industries=frozenset(item.industries),
-        is_paid=None,
+        is_paid=item.is_paid,
         is_available=item.is_available,
         url=item.url,
     )

@@ -5,6 +5,7 @@ from urllib.request import Request, urlopen
 
 api = os.getenv("SMOKE_API_URL", "http://127.0.0.1:8000")
 frontend = os.getenv("SMOKE_FRONTEND_URL", "http://127.0.0.1:5173")
+expected_source = os.getenv("SMOKE_CATALOG_SOURCE")
 
 def get(path):
     with urlopen(path, timeout=15) as response:
@@ -18,6 +19,9 @@ def post(profile=None, history=None, limit=5):
         result = json.load(response)
     assert result["metadata"]["returned"] == len(result["recommendations"])
     assert all(item["reasons"] and item["next_step"] for item in result["recommendations"])
+    assert all(item["description"] is None for item in result["recommendations"] if item["is_paid"])
+    if expected_source:
+        assert result["metadata"]["catalog_source"] == expected_source
     return result
 
 assert get(api + "/health") == {"status": "ok"}
@@ -31,9 +35,14 @@ for goal in ("marketing", "finance", "team"):
         assert result["recommendations"][0]["topic"] in {"marketing": {"marketing"}, "finance": {"finance", "accounting"}, "team": {"operations", "team"}}[goal]
     print(goal, "source=" + result["metadata"]["catalog_source"], "strategy=" + result["metadata"]["strategy"], "returned=" + str(result["metadata"]["returned"]))
 assert post({"industry": "retail"})["recommendations"]
+assert post({"current_goal": "орбитальная механика"})["recommendations"]
 assert post({"preferred_formats": ["course"]})["recommendations"][0]["material_type"] == "course"
 first = post({"current_goal": "marketing"})["recommendations"][0]["material_id"]
 assert first not in {r["material_id"] for r in post({"current_goal": "marketing"}, [{"material_id": first, "event_type": "view"}])["recommendations"]}
-all_items = post(limit=50)["recommendations"]
-assert post(history=[{"material_id": r["material_id"]} for r in all_items])["recommendations"] == []
-print("HTTP health, OpenAPI, Vite proxy, goals, cold/partial profile, formats, history and empty response: OK")
+batch = post(limit=50)
+seen = {item["material_id"] for item in batch["recommendations"]}
+followup = post(history=[{"material_id": mid} for mid in seen])
+assert seen.isdisjoint(item["material_id"] for item in followup["recommendations"])
+if batch["metadata"]["catalog_source"] == "sample":
+    assert followup["recommendations"] == []
+print("HTTP health, OpenAPI, frontend proxy, goals, cold/partial profile, formats and history: OK")

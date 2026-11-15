@@ -10,6 +10,7 @@ WITH catalog_entities AS (
         a."Title" AS title,
         a."Description" AS description,
         a."Url" AS url,
+        NULL::boolean AS is_paid,
         (NOT COALESCE(a."IsDeleted", false)
          AND NOT COALESCE(cs."IsDeleted", false)
          AND a."Published" IS NOT NULL
@@ -23,6 +24,7 @@ WITH catalog_entities AS (
     UNION ALL
 
     SELECT cs."Id", cs."EntityId", 'course', c."Title", c."Description", c."Url",
+        (COALESCE(c."Cost", 0) > 0 OR COALESCE(ct."Title" IN ('По подписке', 'Платный'), false)),
         (NOT COALESCE(c."IsDeleted", false)
          AND NOT COALESCE(cs."IsDeleted", false)
          AND c."Published" IS NOT NULL
@@ -30,11 +32,12 @@ WITH catalog_entities AS (
          AND NOT COALESCE(c."IsClosed", false))
     FROM public."ContentSettings" cs
     JOIN public."Courses" c ON c."Id" = cs."EntityId"
+    LEFT JOIN public."CourseTypes" ct ON ct."Id" = c."TypeId"
     WHERE cs."EntityTypeId" = '8b440b1a-00c3-423a-9bae-3376475eb203'::uuid
 
     UNION ALL
 
-    SELECT cs."Id", cs."EntityId", 'document', d."Title", d."Description", d."Url",
+    SELECT cs."Id", cs."EntityId", 'document', d."Title", d."Description", d."Url", NULL::boolean,
         (NOT COALESCE(d."IsDeleted", false)
          AND NOT COALESCE(cs."IsDeleted", false)
          AND d."Published" IS NOT NULL
@@ -45,7 +48,7 @@ WITH catalog_entities AS (
 
     UNION ALL
 
-    SELECT cs."Id", cs."EntityId", 'webinar', w."Title", w."Description", w."Url",
+    SELECT cs."Id", cs."EntityId", 'webinar', w."Title", w."Description", w."Url", NULL::boolean,
         (NOT COALESCE(w."IsDeleted", false)
          AND NOT COALESCE(cs."IsDeleted", false)
          AND cs."Published" IS NOT NULL
@@ -56,7 +59,7 @@ WITH catalog_entities AS (
 
     UNION ALL
 
-    SELECT cs."Id", cs."EntityId", 'podcast', p."Title", p."Description", p."Url",
+    SELECT cs."Id", cs."EntityId", 'podcast', p."Title", p."Description", p."Url", COALESCE(p."Cost", 0) > 0,
         (NOT COALESCE(p."IsDeleted", false)
          AND NOT COALESCE(cs."IsDeleted", false)
          AND p."Published" IS NOT NULL
@@ -68,8 +71,7 @@ WITH catalog_entities AS (
 
     UNION ALL
 
-    -- Lessons are included only when an available course exposes them as trial
-    -- content or the course is free (Cost IS NULL in this source schema).
+    -- A subscription course can have no listed cost. Only expose its trial lessons.
     SELECT
         NULL::uuid,
         l."Id",
@@ -77,6 +79,7 @@ WITH catalog_entities AS (
         l."Title",
         l."Description",
         NULL::public.citext,
+        false,
         (
             NOT COALESCE(l."IsDeleted", false)
             AND NOT COALESCE(l."IsGroup", false)
@@ -84,10 +87,14 @@ WITH catalog_entities AS (
                 SELECT 1
                 FROM public."CourseLessonBindings" clb
                 JOIN public."Courses" c ON c."Id" = clb."CourseId"
+                LEFT JOIN public."CourseTypes" ct ON ct."Id" = c."TypeId"
                 WHERE clb."LessonId" = l."Id"
                   AND NOT COALESCE(clb."IsDeleted", false)
                   AND NOT COALESCE(clb."IsClosed", false)
-                  AND (COALESCE(clb."IsTrial", false) OR c."Cost" IS NULL)
+                  AND (
+                      COALESCE(clb."IsTrial", false)
+                      OR (COALESCE(c."Cost", 0) = 0 AND NOT COALESCE(ct."Title" IN ('По подписке', 'Платный'), false))
+                  )
                   AND NOT COALESCE(c."IsDeleted", false)
                   AND c."Published" IS NOT NULL
                   AND NOT COALESCE(c."IsClosed", false)
@@ -104,6 +111,7 @@ WITH catalog_entities AS (
         calc."Title",
         calc."Description",
         calc."Url",
+        NULL::boolean,
         NOT COALESCE(calc."IsDeleted", false)
     FROM public."Calculators" calc
 )
@@ -113,6 +121,7 @@ SELECT
     COALESCE(ce.title, '') AS title,
     COALESCE(ce.description, '') AS description,
     ce.url,
+    ce.is_paid,
     ce.is_available,
     COALESCE(array_agg(DISTINCT t."Title") FILTER (WHERE t."Title" IS NOT NULL), ARRAY[]::text[]) AS tags,
     COALESCE(array_agg(DISTINCT tp."Title") FILTER (WHERE tp."Title" IS NOT NULL), ARRAY[]::text[]) AS topics,
@@ -124,5 +133,5 @@ LEFT JOIN public."ContentSettingsTopics" cstop ON cstop."ContentSettingsId" = ce
 LEFT JOIN public."Topics" tp ON tp."Id" = cstop."TopicId" AND NOT COALESCE(tp."IsDeleted", false)
 LEFT JOIN public."ContentSettingsIndustries" csi ON csi."ContentSettingsId" = ce.content_settings_id
 LEFT JOIN public."Industries" i ON i."Id" = csi."IndustryId" AND NOT COALESCE(i."IsDeleted", false)
-GROUP BY ce.content_settings_id, ce.item_id, ce.item_type, ce.title, ce.description, ce.url, ce.is_available
+GROUP BY ce.content_settings_id, ce.item_id, ce.item_type, ce.title, ce.description, ce.url, ce.is_paid, ce.is_available
 ORDER BY ce.item_type, ce.title;

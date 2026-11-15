@@ -29,10 +29,11 @@ def test_catalog_item_is_adapted_to_material():
         industries=frozenset({"any"}),
         is_available=True,
         url="/materials/course-42",
+        is_paid=True,
     )
     material = catalog_provider._to_material(item)
     assert material.material_id == "course-42"
     assert material.material_type == "course"
     assert material.topic in {"accounting", "taxes"}  # first sorted topic
     assert material.is_available is True
-    assert material.is_paid is None  # unknown from the current catalog query
+    assert material.is_paid is True

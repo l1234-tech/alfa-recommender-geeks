@@ -16,6 +16,7 @@ class CatalogItem:
     industries: frozenset[str] = field(default_factory=frozenset)
     is_available: bool = True
     url: str | None = None
+    is_paid: bool | None = None
 
     @property
     def key(self) -> ItemKey:

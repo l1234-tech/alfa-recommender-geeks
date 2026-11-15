@@ -68,14 +68,12 @@ export function RecommendationCard({
           </ul>
         </div>
       )}
-      {(url || practicalStep) && (
-        <div className="next">
-          <h4>
-            {practicalStep ? "Попробуйте после изучения" : "Следующий шаг"}
-          </h4>
-          <p>{item.next_step}</p>
-        </div>
-      )}
+      <div className="next">
+        <h4>
+          {practicalStep ? "Попробуйте после изучения" : "Следующий шаг"}
+        </h4>
+        <p>{item.next_step}</p>
+      </div>
       {!url && (
         <p className="availability-note">
           Материал пока недоступен для перехода

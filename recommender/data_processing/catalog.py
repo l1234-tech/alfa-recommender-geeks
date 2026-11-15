@@ -50,4 +50,5 @@ def normalize_item(row: Mapping[str, object]) -> CatalogItem:
         industries=_as_set(row.get("industries")),
         is_available=_as_bool(row.get("is_available"), default=True),
         url=str(row["url"]).strip() if row.get("url") else None,
+        is_paid=_as_bool(row["is_paid"]) if row.get("is_paid") is not None else None,
     )

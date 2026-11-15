@@ -32,7 +32,7 @@ def get_recommendations(request: RecommendationRequest) -> RecommendationRespons
         RecommendationItem(
             material_id=r.material.material_id,
             title=r.material.title,
-            description=r.material.description or None,
+            description=(r.material.description or None) if r.material.is_paid is not True else None,
             url=public_url(r.material.url) if catalog_source() == "database" else None,
             material_type=r.material.material_type,
             topic=r.material.topic,

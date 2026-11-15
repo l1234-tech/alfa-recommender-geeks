@@ -16,6 +16,8 @@ it("renders all reasons, safe links and preserves unknown payment", () => {
   const view = render(<RecommendationCard item={item} />);
   expect(screen.getByText("Вторая причина")).toBeTruthy();
   expect(screen.queryByRole("link")).toBeNull();
+  expect(screen.getByText("Следующий шаг")).toBeTruthy();
+  expect(screen.getByText(item.next_step)).toBeTruthy();
   expect(
     screen.getByText("Материал пока недоступен для перехода"),
   ).toBeTruthy();
