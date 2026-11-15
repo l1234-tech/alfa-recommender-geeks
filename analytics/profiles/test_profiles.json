@@ -1,0 +1,152 @@
+[
+  {
+    "id": "p01_newbie_launch",
+    "persona": "Начинающий предприниматель",
+    "scenario": "full_profile",
+    "description": "Хочет открыть ИП, не знает с чего начать",
+    "user": {"stage": "idea", "industry": "Услуги", "current_goal": "открыть ИП", "experience": "beginner"},
+    "history_spec": null,
+    "expected": {"themes": ["launch", "taxes_law"], "levels": ["beginner"], "stages": ["start"], "formats": ["article", "document", "course"]},
+    "checks": ["first_is_free", "not_advanced_first"]
+  },
+  {
+    "id": "p02_cafe_taxes_quick",
+    "persona": "Владелец малого бизнеса",
+    "scenario": "full_profile",
+    "description": "Кофейня, нужен быстрый ответ про сроки налогов на УСН",
+    "user": {"stage": "running", "industry": "HoReCa", "current_goal": "сроки уплаты налогов УСН", "experience": "experienced", "preferred_format": "article"},
+    "history_spec": null,
+    "expected": {"themes": ["taxes_law", "finance"], "levels": [], "stages": ["growth"], "formats": ["article", "document"]},
+    "checks": ["short_first"]
+  },
+  {
+    "id": "p03_solo_marketing_course",
+    "persona": "Соло-фаундер",
+    "scenario": "full_profile",
+    "description": "Хочет системно разобраться в маркетинге, готов к курсу",
+    "user": {"stage": "growth", "industry": "Услуги", "current_goal": "маркетинг", "experience": "experienced", "preferred_format": "course"},
+    "history_spec": null,
+    "expected": {"themes": ["marketing"], "levels": [], "stages": ["growth"], "formats": ["course", "webinar", "podcast"]},
+    "checks": []
+  },
+  {
+    "id": "p04_cold_empty",
+    "persona": "Неизвестно",
+    "scenario": "cold_start",
+    "description": "Полностью пустой профиль, без истории",
+    "user": {},
+    "history_spec": null,
+    "expected": {"themes": [], "levels": ["beginner"], "stages": ["start"], "formats": ["article", "document", "course"]},
+    "checks": ["first_is_free", "not_advanced_first"]
+  },
+  {
+    "id": "p05_only_goal_promo",
+    "persona": "Новый пользователь",
+    "scenario": "cold_start",
+    "description": "Сценарий из ТЗ: указал только задачу «продвижение бизнеса»",
+    "user": {"current_goal": "продвижение бизнеса"},
+    "history_spec": null,
+    "expected": {"themes": ["marketing"], "levels": ["beginner"], "stages": [], "formats": []},
+    "checks": ["first_is_free", "not_advanced_first"]
+  },
+  {
+    "id": "p06_unknown_industry",
+    "persona": "Владелец малого бизнеса",
+    "scenario": "no_match",
+    "description": "Нестандартная сфера (такой отрасли в базе нет), задача — найм",
+    "user": {"stage": "running", "industry": "ветеринарная клиника", "current_goal": "найм персонала", "experience": "beginner"},
+    "history_spec": null,
+    "expected": {"themes": ["team"], "levels": ["beginner"], "stages": [], "formats": []},
+    "checks": []
+  },
+  {
+    "id": "p07_history_marketing",
+    "persona": "Владелец малого бизнеса",
+    "scenario": "with_history",
+    "description": "Уже прочитал 3 статьи по маркетингу — ждём следующий шаг, без повторов",
+    "user": {"stage": "running", "industry": "Розница", "current_goal": "маркетинг", "experience": "beginner"},
+    "history_spec": {"theme": "marketing", "format": "article", "n": 3, "event": "view"},
+    "expected": {"themes": ["marketing", "sales"], "levels": ["beginner"], "stages": [], "formats": ["course", "document", "webinar", "podcast"]},
+    "checks": ["no_seen"]
+  },
+  {
+    "id": "p08_advanced_finance",
+    "persona": "Соло-фаундер",
+    "scenario": "full_profile",
+    "description": "Опытный, растущий бизнес, хочет углубиться в финансы",
+    "user": {"stage": "growth", "industry": "Производство", "current_goal": "финансы и учёт", "experience": "experienced"},
+    "history_spec": null,
+    "expected": {"themes": ["finance"], "levels": ["experienced"], "stages": ["growth"], "formats": []},
+    "checks": []
+  },
+  {
+    "id": "p09_free_text_clients",
+    "persona": "Начинающий предприниматель",
+    "scenario": "partial_profile",
+    "description": "Пишет без терминов: «где брать покупателей»",
+    "user": {"current_goal": "где брать покупателей", "experience": "beginner"},
+    "history_spec": null,
+    "expected": {"themes": ["sales", "marketing", "marketplaces"], "levels": ["beginner"], "stages": [], "formats": []},
+    "checks": ["not_advanced_first"]
+  },
+  {
+    "id": "p10_beginner_advanced_topic",
+    "persona": "Начинающий предприниматель",
+    "scenario": "full_profile",
+    "description": "Новичок, но спрашивает про финмодель — сначала база, а не LBO",
+    "user": {"stage": "idea", "industry": "Розница", "current_goal": "финансовая модель", "experience": "beginner"},
+    "history_spec": null,
+    "expected": {"themes": ["finance"], "levels": ["beginner"], "stages": ["start"], "formats": []},
+    "checks": ["not_advanced_first"]
+  },
+  {
+    "id": "p11_history_only",
+    "persona": "Неизвестно",
+    "scenario": "with_history",
+    "description": "Анкету не заполнял, но читал статьи про налоги",
+    "user": {},
+    "history_spec": {"theme": "taxes_law", "format": "article", "n": 2, "event": "view"},
+    "expected": {"themes": ["taxes_law", "finance"], "levels": [], "stages": [], "formats": []},
+    "checks": ["no_seen"]
+  },
+  {
+    "id": "p12_retail_sales_template",
+    "persona": "Владелец малого бизнеса",
+    "scenario": "full_profile",
+    "description": "Магазин, хочет поднять продажи, любит готовые шаблоны",
+    "user": {"stage": "running", "industry": "Розница", "current_goal": "продажи", "experience": "experienced", "preferred_format": "document"},
+    "history_spec": null,
+    "expected": {"themes": ["sales"], "levels": [], "stages": ["growth"], "formats": ["document", "article"]},
+    "checks": []
+  },
+  {
+    "id": "p13_typo_goal",
+    "persona": "Новый пользователь",
+    "scenario": "partial_profile",
+    "description": "Опечатки и разговорный стиль: «налоги ип скока платить»",
+    "user": {"current_goal": "налоги ип скока платить", "stage": "idea"},
+    "history_spec": null,
+    "expected": {"themes": ["taxes_law"], "levels": ["beginner"], "stages": ["start"], "formats": []},
+    "checks": []
+  },
+  {
+    "id": "p14_finished_course",
+    "persona": "Соло-фаундер",
+    "scenario": "with_history",
+    "description": "Уже прошёл курс по продажам — не предлагать его повторно",
+    "user": {"stage": "growth", "industry": "Услуги", "current_goal": "продажи", "experience": "beginner"},
+    "history_spec": {"theme": "sales", "format": "course", "n": 1, "event": "complete"},
+    "expected": {"themes": ["sales", "marketing"], "levels": ["beginner"], "stages": ["growth"], "formats": []},
+    "checks": ["no_seen"]
+  },
+  {
+    "id": "p15_marketplace_seller",
+    "persona": "Владелец малого бизнеса",
+    "scenario": "full_profile",
+    "description": "Продаёт на Wildberries, хочет больше продаж",
+    "user": {"stage": "running", "industry": "ECom", "current_goal": "продажи на маркетплейсах", "experience": "beginner"},
+    "history_spec": null,
+    "expected": {"themes": ["marketplaces", "sales"], "levels": ["beginner"], "stages": [], "formats": []},
+    "checks": []
+  }
+]
