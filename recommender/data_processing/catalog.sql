@@ -48,7 +48,6 @@ WITH catalog_entities AS (
     SELECT cs."Id", cs."EntityId", 'webinar', w."Title", w."Description", w."Url",
         (NOT COALESCE(w."IsDeleted", false)
          AND NOT COALESCE(cs."IsDeleted", false)
-         AND w."Published" IS NOT NULL
          AND cs."Published" IS NOT NULL
          AND NOT COALESCE(w."IsClosed", false))
     FROM public."ContentSettings" cs
