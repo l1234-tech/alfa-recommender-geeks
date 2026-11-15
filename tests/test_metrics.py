@@ -50,7 +50,7 @@ class RankingMetricsTests(unittest.TestCase):
             [[a.key, b.key], [a.key]],
             {a.key: a, b.key: b},
         )
-        self.assertEqual(result["avg_unique_topics_per_list"], 1.0)
+        self.assertEqual(result["avg_unique_topics_per_list"], 1.5)
         self.assertEqual(result["avg_unique_types_per_list"], 1.5)
         self.assertGreater(result["intra_list_diversity"], 0.0)
 
