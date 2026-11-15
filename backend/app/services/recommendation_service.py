@@ -9,7 +9,7 @@ from app.schemas.recommendation import (
     RecommendationResponse,
 )
 from app.services import ml_adapter
-from app.services.sample_catalog import get_catalog
+from app.services.catalog_provider import get_materials
 
 
 def get_recommendations(request: RecommendationRequest) -> RecommendationResponse:
@@ -20,7 +20,7 @@ def get_recommendations(request: RecommendationRequest) -> RecommendationRespons
 
     fields = ml_adapter.build_profile_fields(request.user_profile, request.history)
     ranked = ml_adapter.rank(
-        get_catalog(),
+        get_materials(),
         fields,
         limit=limit,
         strategy=settings.strategy,

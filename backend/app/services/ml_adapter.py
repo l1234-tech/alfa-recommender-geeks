@@ -6,6 +6,7 @@ small built-in overlap scorer with equivalent behaviour keeps the API working.
 """
 from __future__ import annotations
 
+import logging
 import re
 import sys
 from dataclasses import dataclass
@@ -17,9 +18,12 @@ from app.services.sample_catalog import Material
 _TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
 
 
-def _ensure_recommender_on_path() -> None:
-    # The recommender package lives at the repo root (../.. from this file in
-    # the mounted layout, or /recommender when mounted separately in Docker).
+def ensure_recommender_on_path() -> None:
+    """Add the repo root (which contains the `recommender` package) to sys.path.
+
+    Works both in the mounted dev layout and when `recommender` is mounted at
+    `/recommender` in Docker.
+    """
     here = Path(__file__).resolve()
     candidates = [here.parents[3], Path("/"), Path("/app")]
     for root in candidates:
@@ -28,7 +32,7 @@ def _ensure_recommender_on_path() -> None:
 
 
 try:
-    _ensure_recommender_on_path()
+    ensure_recommender_on_path()
     from recommender.models import CatalogItem, UserProfile
     from recommender.ranking import recommend as _engine_recommend
 
@@ -84,7 +88,12 @@ def rank(
     force_builtin: bool = False,
 ) -> list[Ranked]:
     if RECOMMENDER_AVAILABLE and not force_builtin:
-        return _rank_with_engine(materials, fields, limit, strategy)
+        try:
+            return _rank_with_engine(materials, fields, limit, strategy)
+        except Exception:
+            # Never fail the request on an engine runtime error: degrade to the
+            # transparent built-in scorer with the same response shape.
+            logging.getLogger(__name__).exception("ML engine failed; using built-in scorer")
     return _rank_builtin(materials, fields, limit)
 
 
