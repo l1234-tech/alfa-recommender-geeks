@@ -1,12 +1,34 @@
-# Frontend
+# Frontend — интерфейс рекомендаций
 
-Планируемый стек: React + TypeScript + Vite.
+Минимальный веб-интерфейс на **Streamlit**: форма профиля пользователя → вызов
+backend API → карточки рекомендаций с объяснениями (`reasons`) и следующим шагом
+(`next_step`). Поддерживает холодный старт (пустой профиль) и учёт истории.
+Цель — продемонстрировать сквозной сценарий, а не повторять сайт платформы
+(что явно допускается условиями кейса).
 
-Инициализация приложения:
+## Запуск
+
+Вместе со всем стеком из корня репозитория:
+
 ```bash
-npm create vite@latest . -- --template react-ts
-npm install
-npm run dev
+docker compose up --build
 ```
 
-Не забудьте согласовать адрес API и формат ответа с backend.
+- Интерфейс: http://localhost:8501
+- Обращается к backend по `BACKEND_URL` (в compose — `http://backend:8000`).
+
+Локально (нужен запущенный backend на :8000):
+
+```bash
+cd frontend
+pip install -r requirements.txt
+BACKEND_URL=http://localhost:8000 streamlit run streamlit_app.py
+```
+
+## Переменные окружения
+
+| Переменная | По умолчанию | Назначение |
+|---|---|---|
+| `BACKEND_URL` | `http://localhost:8000` | Адрес backend API |
+
+Контракт ответа — в [`../docs/api.md`](../docs/api.md).
