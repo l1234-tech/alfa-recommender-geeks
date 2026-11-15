@@ -1,10 +1,9 @@
-"""Transparent metadata-overlap baseline; intentionally no learned weights."""
+"""Transparent metadata-overlap baseline with missing-field-aware scoring."""
 from __future__ import annotations
 
 import re
 
 from recommender.models import CatalogItem, UserProfile
-
 
 TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
 
@@ -21,22 +20,29 @@ def _overlap(left: frozenset[str], right: frozenset[str]) -> float:
 
 
 def score_item(profile: UserProfile, item: CatalogItem) -> float:
-    """Return a [0, 1] score from explicit profile-to-metadata overlap.
+    """Average only comparable fields; absent metadata is not a mismatch.
 
-    Equal weights are a deliberately simple starting baseline, not tuned
-    production parameters. Missing profile fields contribute zero.
+    The result remains in [0, 1]. A profile field contributes only when both
+    the profile and candidate have values for that field.
     """
-    components = [
-        _overlap(profile.topics, item.topics),
-        _overlap(profile.tags, item.tags),
-        _overlap(profile.industries, item.industries),
-    ]
+    components: list[float] = []
+    for profile_values, item_values in (
+        (profile.topics, item.topics),
+        (profile.tags, item.tags),
+        (profile.industries, item.industries),
+    ):
+        if profile_values and item_values:
+            components.append(_overlap(profile_values, item_values))
+
     if profile.preferred_types:
         components.append(float(item.item_type.casefold() in {
             value.casefold() for value in profile.preferred_types
         }))
+
     if profile.current_goal.strip():
         goal_tokens = _tokens(profile.current_goal)
         text_tokens = _tokens(item.title + " " + item.description)
-        components.append(len(goal_tokens & text_tokens) / len(goal_tokens) if goal_tokens else 0.0)
+        if goal_tokens and text_tokens:
+            components.append(len(goal_tokens & text_tokens) / len(goal_tokens))
+
     return sum(components) / len(components) if components else 0.0
