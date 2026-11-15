@@ -169,6 +169,12 @@ export function HomePage() {
                   )}
               </div>
             </div>
+            {state.kind === "success" && (
+              <p className="fine">
+                Сначала — наиболее подходящие материалы, затем — дополнительные
+                по другим темам.
+              </p>
+            )}
             <div role="status" aria-live="polite">
               {changed && (
                 <p className="notice">

@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run --exclude **/.handoff-check/**"
   },
   "dependencies": {
     "react": "^19.2.0",

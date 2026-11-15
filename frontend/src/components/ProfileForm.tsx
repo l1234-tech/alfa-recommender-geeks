@@ -88,8 +88,9 @@ export function ProfileForm({
           </div>
         ))}
 
+      <p className="fine">В подборке могут быть и другие форматы.</p>
       <fieldset className="format-options">
-        <legend>Удобный формат</legend>
+        <legend>Предпочтительный формат</legend>
         {[
           ["course", "Курс"],
           ["article", "Статья"],

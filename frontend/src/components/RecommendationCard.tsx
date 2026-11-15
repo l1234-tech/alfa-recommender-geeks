@@ -30,6 +30,14 @@ export function RecommendationCard({
   practicalStep?: boolean;
 }) {
   const url = safeMaterialUrl(item.url);
+  const action =
+    (
+      {
+        article: "Открыть статью",
+        course: "Перейти к курсу",
+        webinar: "Открыть вебинар",
+      } as Record<string, string>
+    )[item.material_type] ?? "Открыть материал";
   return (
     <article className="material">
       <p className="material-details">
@@ -38,7 +46,15 @@ export function RecommendationCard({
         {item.is_paid === true && " · Платный"}
         {item.is_paid === false && " · Бесплатный"}
       </p>
-      <h3>{item.title}</h3>
+      <h3>
+        {url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            {item.title}
+          </a>
+        ) : (
+          item.title
+        )}
+      </h3>
       {item.description && (
         <p className="material-description">{item.description}</p>
       )}
@@ -52,10 +68,19 @@ export function RecommendationCard({
           </ul>
         </div>
       )}
-      <div className="next">
-        <h4>{practicalStep ? "Попробуйте после изучения" : "Следующий шаг"}</h4>
-        <p>{item.next_step}</p>
-      </div>
+      {(url || practicalStep) && (
+        <div className="next">
+          <h4>
+            {practicalStep ? "Попробуйте после изучения" : "Следующий шаг"}
+          </h4>
+          <p>{item.next_step}</p>
+        </div>
+      )}
+      {!url && (
+        <p className="availability-note">
+          Материал пока недоступен для перехода
+        </p>
+      )}
       {url && (
         <a
           className="material-link"
@@ -63,7 +88,7 @@ export function RecommendationCard({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Открыть материал ↗
+          {action} ↗
         </a>
       )}
     </article>
