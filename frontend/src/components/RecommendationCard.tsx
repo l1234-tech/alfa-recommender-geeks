@@ -35,6 +35,7 @@ export function RecommendationCard({
       {
         article: "Открыть статью",
         course: "Перейти к курсу",
+        lesson: "Открыть урок",
         webinar: "Открыть вебинар",
       } as Record<string, string>
     )[item.material_type] ?? "Открыть материал";

@@ -21,6 +21,7 @@ PUBLIC_PATHS = {
     "glossary": "/vocabulary/",
 }
 _SLUG_RE = re.compile(r"^[\w-]+$", re.UNICODE)
+_LESSON_PATH_RE = re.compile(r"^/?courses/([\w-]+)/lesson/([1-9]\d*)/?$", re.UNICODE)
 
 
 def get_recommendations(request: RecommendationRequest) -> RecommendationResponse:
@@ -67,7 +68,7 @@ def get_recommendations(request: RecommendationRequest) -> RecommendationRespons
 
 
 def public_url(value: str | None, material_type: str | None = None) -> str | None:
-    """Resolve catalog slugs to known public Альфа-Курс routes safely."""
+    """Resolve catalog URLs/slugs to validated public Альфа-Курс routes."""
     if not value:
         return None
     raw = value.strip()
@@ -82,6 +83,16 @@ def public_url(value: str | None, material_type: str | None = None) -> str | Non
             return None
     except ValueError:
         return None
+
+    # Lesson rows carry their course slug and lesson number in Url. Alfa-Course
+    # publishes lessons below /courses/{course-slug}/lesson/{number}/.
+    if (material_type or "").strip().casefold() == "lesson":
+        match = _LESSON_PATH_RE.fullmatch(raw)
+        if match:
+            course_slug, lesson_number = match.groups()
+            return f"{PUBLIC_ORIGIN}/courses/{quote(course_slug, safe='-_')}/lesson/{lesson_number}/"
+        return None
+
     path = PUBLIC_PATHS.get((material_type or "").strip().casefold())
     slug = raw.strip("/")
     if path is None or not _SLUG_RE.fullmatch(slug) or slug in {".", ".."}:
