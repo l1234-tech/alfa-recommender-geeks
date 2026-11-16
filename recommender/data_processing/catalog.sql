@@ -71,14 +71,43 @@ WITH catalog_entities AS (
 
     UNION ALL
 
-    -- A subscription course can have no listed cost. Only expose its trial lessons.
+    -- Lesson URLs are built from the published course slug and the lesson's
+    -- course-wide Order. ParentGroupId is only a grouping relation; it does
+    -- not affect the public lesson number.
+    -- A lesson can be bound to multiple courses, so choose one eligible route
+    -- deterministically (prefer a free course, then a trial binding).
     SELECT
         NULL::uuid,
         l."Id",
         'lesson'::text,
         l."Title",
         l."Description",
-        NULL::public.citext,
+        (
+            SELECT (
+                'courses/' || c."Url"::text || '/lesson/' || clb."Order"::text
+            )::public.citext
+            FROM public."CourseLessonBindings" clb
+            JOIN public."Courses" c ON c."Id" = clb."CourseId"
+            LEFT JOIN public."CourseTypes" ct ON ct."Id" = c."TypeId"
+            WHERE clb."LessonId" = l."Id"
+              AND NOT COALESCE(clb."IsDeleted", false)
+              AND NOT COALESCE(clb."IsClosed", false)
+              AND clb."Order" > 0
+              AND c."Url" IS NOT NULL
+              AND btrim(c."Url"::text) <> ''
+              AND (
+                  COALESCE(clb."IsTrial", false)
+                  OR (COALESCE(c."Cost", 0) = 0 AND NOT COALESCE(ct."Title" IN ('По подписке', 'Платный'), false))
+              )
+              AND NOT COALESCE(c."IsDeleted", false)
+              AND c."Published" IS NOT NULL
+              AND NOT COALESCE(c."IsClosed", false)
+            ORDER BY
+                (COALESCE(c."Cost", 0) = 0 AND NOT COALESCE(ct."Title" IN ('По подписке', 'Платный'), false)) DESC,
+                COALESCE(clb."IsTrial", false) DESC,
+                c."Url"::text
+            LIMIT 1
+        ),
         false,
         (
             NOT COALESCE(l."IsDeleted", false)
