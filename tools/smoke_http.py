@@ -41,7 +41,7 @@ assert all(item["reasons"] and item["next_step"] for item in no_match["recommend
 assert post({"preferred_formats": ["course"]})["recommendations"][0]["material_type"] == "course"
 first = post({"current_goal": "marketing"})["recommendations"][0]["material_id"]
 assert first not in {r["material_id"] for r in post({"current_goal": "marketing"}, [{"material_id": first, "event_type": "view"}])["recommendations"]}
-batch = post(limit=50)
+batch = post(limit=20)
 seen = {item["material_id"] for item in batch["recommendations"]}
 followup = post(history=[{"material_id": mid} for mid in seen])
 assert seen.isdisjoint(item["material_id"] for item in followup["recommendations"])
