@@ -1,55 +1,47 @@
 # Каталог «Альфа-Курса»
 
-Храните предоставленный архив и любые выгрузки локально. Файлы данных в этой
-папке игнорируются Git. При запуске без архива API использует демо-каталог.
+Исходную выгрузку храните локально. Дамп и архив намеренно не коммитятся в Git
+и не копируются в Docker image.
 
-Обычный `.sql` или `.sql.gz` в этой папке восстанавливается при первом запуске
-PostgreSQL с пустым Docker volume.
+## Восстановление предоставленной выгрузки
 
-## Восстановление предоставленного `.backup`
+1. Распакуйте приложенный архив.
+2. Поместите `alfa_course_hackathon.sql` в папку `data/`.
+3. Запустите PostgreSQL: `docker compose up -d --wait db`.
+4. Из корня проекта выполните: `python tools/restore_catalog.py`.
 
-Выполните команды из корня проекта. В базе `alfa_course` не должно быть ранее
-восстановленных таблиц. Для отдельной проверки с новым volume добавьте
-`-p alfa-db-check` после `docker compose` во всех командах и укажите свободные
-порты по [README](../README.md).
+Скрипт потоково передаёт SQL в контейнер PostgreSQL. Выгрузка создана pg_dump 17,
+а проект использует PostgreSQL 16: скрипт удаляет только psql-команды защиты
+дампа и параметр `transaction_timeout`, отсутствующий в PostgreSQL 16. Остальной
+SQL и данные передаются без изменений. Импорт выполняется в одной транзакции;
+при ошибке изменения откатываются.
 
-Нужен `pg_restore` версии 17 или новее, доступный в PATH. Замените
-`/path/to/alfa_course_hackathon.backup` на путь к своему файлу.
+Скрипт отказывается импортировать дамп поверх непустой базы. Для повторного
+импорта локальной тестовой базы сначала остановите стек и удалите volume:
 
 ```bash
+docker compose down -v
 docker compose up -d --wait db
-(
-  set -e
-  set -o pipefail
-  archive=/path/to/alfa_course_hackathon.backup
-  restore_sql=$(mktemp)
-  trap 'rm -f "$restore_sql"' EXIT
-  pg_restore --no-owner --no-privileges --file=- "$archive" |
-    sed '1,30{/^SET transaction_timeout = 0;$/d;}' > "$restore_sql"
-  docker compose exec -T db psql -X -U alfa -d alfa_course \
-    --set=ON_ERROR_STOP=1 --single-transaction --file=- < "$restore_sql"
-)
+python tools/restore_catalog.py
 ```
 
-Строка `SET transaction_timeout` удаляется из заголовка SQL для совместимости с
-PostgreSQL 16. `psql` запускается внутри сервиса `db`, поэтому подключается к
-нужной базе даже при наличии PostgreSQL на компьютере.
+**Внимание:** `docker compose down -v` удаляет локальные данные PostgreSQL.
 
-После успешного восстановления запустите стек. Если Backend уже был запущен,
-перезапустите его, чтобы сбросить кэш каталога.
-
-```bash
-docker compose up -d --build --wait
-docker compose restart backend
-docker compose up -d --wait
-```
-
-Проверьте API одним запросом:
+После импорта запустите приложение: `docker compose up -d --build --wait`.
+Проверьте `http://localhost:8000/health` и отправьте запрос:
 
 ```bash
 curl -fsS http://localhost:8000/api/v1/recommendations \
-  -H 'Content-Type: application/json' -d '{"limit":1}'
+  -H 'Content-Type: application/json' -d '{"limit":5}'
 ```
 
-При загрузке из PostgreSQL в `metadata.catalog_source` будет `database`.
+В ответе `metadata.catalog_source` должно быть `database`, а у материалов с
+поддерживаемым публичным типом и заполненным slug — HTTPS URL Альфа-Курса.
 Значение `sample` означает демо-каталог.
+
+## Почему дамп не монтируется в initdb
+
+Выгрузка использует psql-команды и настройку pg_dump 17, несовместимые с
+автоматическим запуском через стандартный initdb-скрипт PostgreSQL 16.
+Поэтому Compose не подключает папку `data/` как каталог автозапуска; импорт
+выполняется явным проверяемым скриптом выше.

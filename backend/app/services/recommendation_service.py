@@ -20,7 +20,7 @@ PUBLIC_PATHS = {
     "webinar": "/webinars/", "podcast": "/podcasts/", "calculator": "/calculators/",
     "glossary": "/vocabulary/",
 }
-_SLUG_RE = re.compile(r"^[\\w-]+$", re.UNICODE)
+_SLUG_RE = re.compile(r"^[\w-]+$", re.UNICODE)
 
 
 def get_recommendations(request: RecommendationRequest) -> RecommendationResponse:
