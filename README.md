@@ -1,33 +1,80 @@
 # Alfa Recommender
 
-Подбор образовательных материалов под задачу бизнеса. Основной интерфейс — React + TypeScript + Vite; FastAPI вызывает recommender.ranking.recommend над каталогом. Streamlit сохранён отдельно в tools/streamlit как вспомогательный инструмент.
+Персональные рекомендации образовательных материалов «Альфа-Курса» под задачу предпринимателя. Основной продуктовый интерфейс — React + TypeScript + Vite; API — FastAPI; ранжирование — пакет `recommender`; каталог — PostgreSQL. Streamlit в `tools/streamlit` оставлен как вспомогательный инструмент и не участвует в основном запуске.
 
-## Основной запуск — Docker
+## Быстрый запуск (Docker)
 
-Нужен работающий Docker Engine/Compose:
+**Требуется:** Docker Desktop / Docker Engine с Compose v2. На Windows запускайте команды из PowerShell в корне репозитория.
 
-```sh
-docker compose up --build
+1. Скопируйте пример переменных окружения (необязательно, если подходят порты по умолчанию):
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+2. Соберите и запустите стек:
+
+   ```powershell
+   docker compose up -d --build --wait
+   ```
+
+3. Откройте:
+
+   - React: [http://localhost:8080](http://localhost:8080)
+   - Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - Health: [http://localhost:8000/health](http://localhost:8000/health)
+   - PostgreSQL: `localhost:5433`, база `alfa_course`, пользователь/пароль для локальной разработки `alfa/alfa`.
+
+Nginx обслуживает React и проксирует `/api` к FastAPI внутри Compose-сети. Браузеру не требуется отдельный адрес backend.
+
+**Важно:** без восстановленной выгрузки приложение всё равно запускается, но использует небольшой синтетический demo-каталог. Для проверки настоящих материалов Альфа-Курса выполните следующий раздел. В Swagger проверьте `metadata.catalog_source`: `sample` означает demo-каталог, `database` — загруженную БД.
+
+Остановка без удаления данных:
+
+```powershell
+docker compose down
 ```
 
-- [Интерфейс React](http://localhost:8080).
-- [Swagger](http://localhost:8000/docs) и [проверка Backend](http://localhost:8000/health).
-- PostgreSQL 16: localhost:5433, база alfa_course, dev user/password alfa/alfa.
-- nginx передаёт /api к backend:8000 внутри сети; браузер использует свой origin.
-- `docker compose down` останавливает сервисы и сохраняет базу в Docker volume.
-- При занятых портах задайте `ALFA_UI_PORT`, `ALFA_API_PORT` и `ALFA_DB_PORT` в окружении или в `.env`.
+Не используйте `docker compose down -v`, если хотите сохранить локальную БД. Для просмотра состояния и логов:
 
-### Проверка для жюри
+```powershell
+docker compose ps
+docker compose logs --tail=100 backend db frontend
+```
 
-1. В React нажмите **Подобрать без уточнений**. В карточках появятся причины и следующие шаги.
-2. Выберите **Привлечь клиентов**, укажите сферу или формат по желанию и нажмите **Подобрать материалы**.
-3. В Swagger отправьте запрос с ID из первой подборки в `history`. API исключит этот материал. Готовая команда и порядок показа есть в [сценарии защиты](presentation/defense.md).
+Если порты заняты, задайте в `.env` значения `ALFA_UI_PORT`, `ALFA_API_PORT`, `ALFA_DB_PORT` (по умолчанию 8080, 8000, 5433).
+
+## Загрузка предоставленного каталога
+
+SQL-выгрузка не хранится в Git: по условиям кейса исходные данные нельзя публиковать. Получите файл у организаторов, распакуйте его и положите **`alfa_course_hackathon.sql`** в локальную папку `data/`.
+
+Из корня репозитория выполните:
+
+```powershell
+docker compose up -d --wait db
+python tools/restore_catalog.py
+docker compose up -d --build --wait
+```
+
+Скрипт перед импортом проверяет, что схема public пуста, и отказывается перезаписывать непустую БД. Он потоково передаёт plain SQL в контейнер и удаляет несовместимые с PostgreSQL 16 служебные строки из дампа pg_dump 17. Если импорт остановился из-за непустой БД, **не удаляйте volume автоматически**: сначала проверьте, нужна ли сохранённая база. Полный разбор и восстановление — [data/README.md](data/README.md).
+
+После успешного импорта перезапустите backend (команда запуска всего стека выше это делает) и убедитесь, что API возвращает `metadata.catalog_source = "database"`. Если значение `sample`, настоящая выгрузка не загружена или backend не смог подключиться к БД.
+
+## Проверка для жюри
+
+1. Откройте React и нажмите **«Подобрать без уточнений»** — проверьте причины и следующие шаги в карточках.
+2. Выберите **«Привлечь клиентов»**, при желании задайте сферу/опыт и нажмите **«Подобрать материалы»**.
+3. В Swagger вызовите `POST /api/v1/recommendations` с пустым профилем. Скопируйте `material_id` одной рекомендации и повторите запрос, передав этот ID в `history`. Просмотренный материал должен исчезнуть из следующей выдачи.
+4. В ответе проверьте `metadata.catalog_source = "database"` (если восстановили SQL) и в логах backend — `ranking path=engine`.
+5. Подробная последовательность показа и готовые запросы — [сценарий защиты](presentation/defense.md).
 
 [Презентация в PDF](presentation/alfa-course.pdf).
 
 ## Локальный запуск без Docker
 
-Python 3.11–3.13, Node.js 22.12+ / 24 LTS, npm. Из корня (PowerShell):
+**Требуется:** Python 3.11–3.13, Node.js 22.12+ или Node.js 24 LTS, npm и (для настоящего каталога) доступная PostgreSQL.
+
+В первом терминале из корня:
 
 ```powershell
 python -m venv .venv
@@ -35,69 +82,69 @@ python -m venv .venv
 ./.venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-В другом терминале:
+Во втором терминале:
 
-```sh
+```powershell
 cd frontend
 npm ci
 npm run dev
 ```
 
-React: http://localhost:5173. Vite проксирует /api на localhost:8000. Пакеты recommender и analytics доступны из корня; в backend Dockerfile они включены в образ, а не требуют ручного volume.
-В Linux/macOS используйте .venv/bin/python вместо Windows-пути.
+React: [http://localhost:5173](http://localhost:5173). Vite проксирует `/api` на `localhost:8000`. Без `DATABASE_URL` backend использует demo-каталог. Для подключения БД задайте `DATABASE_URL` в окружении backend (например, `postgresql://alfa:alfa@127.0.0.1:5433/alfa_course`) до запуска uvicorn. В Linux/macOS используйте `.venv/bin/python` вместо Windows-пути.
 
-## Подключение исходного каталога Альфа-Курса
+## Режимы и конфигурация
 
-Чтобы рекомендации вели на реальные материалы, восстановите предоставленную SQL-выгрузку. Без неё приложение запускается с синтетическим демо-каталогом, в котором нет настоящих страниц материалов.
-
-1. Распакуйте архив и положите `alfa_course_hackathon.sql` в `data/`.
-2. Запустите PostgreSQL: `docker compose up -d --wait db`.
-3. Выполните импорт: `python tools/restore_catalog.py`.
-4. Запустите весь стек: `docker compose up -d --build --wait`.
-
-Подробности и совместимость PostgreSQL 16/pg_dump 17 — в [инструкции по восстановлению каталога](data/README.md). Дамп остаётся локальным и не коммитится. Скрипт отказывается импортировать поверх непустой базы.
-
-После импорта backend должен вернуть `metadata.catalog_source = "database"`. Если указано `sample`, настоящие ссылки не появятся.
-
-## Каталог и режимы
-
-- Обычный npm run dev / compose: настоящий HTTP API и движок. Без настроенной БД или при ошибке загрузки backend использует sample из 12 материалов; UI честно помечает «Подборка по учебному каталогу».
-- DATABASE_URL (только backend) подключает предоставленную PostgreSQL-базу. Загрузчик читает публичные метаданные через recommender/data_processing/catalog.sql; события и пользовательские таблицы для этого API не читаются. Каталог кэшируется, после импорта перезапустите backend.
-- Для предоставленной plain SQL-выгрузки используйте [инструкцию восстановления](data/README.md).
-- Дамп и секреты не коммитятся. В рабочем data/ дамп не предоставлен.
-- npm run dev:mock — только автономные frontend fixtures, без вызова движка; пометка «Пример подборки». Этот режим не нужен при запущенном backend.
+- Обычный запуск React + API — настоящий HTTP-запрос к FastAPI и ML-движку.
+- Без настроенной БД или при ошибке загрузки backend использует demo-каталог из 12 материалов; ответ сообщает `catalog_source=sample`.
+- `DATABASE_URL` задаётся только backend. Каталог загружается из PostgreSQL и кэшируется в памяти; после импорта/изменения БД перезапустите backend.
+- `npm run dev:mock` в `frontend/` включает автономные frontend fixtures без вызова backend. Это режим для разработки интерфейса, не основной режим демонстрации.
+- В Docker по умолчанию `RECO_STRATEGY=hybrid`. Для сравнения можно задать `RECO_STRATEGY=baseline`. `RECO_FORCE_BUILTIN=1` принудительно включает резервный скорер.
+- Пример конфигурации — [.env.example](.env.example). Реальные секреты и дамп не коммитить.
 
 ## Проверки
 
+Backend (из корня; сначала установите зависимости):
+
 ```powershell
 ./.venv/Scripts/python.exe -m pytest -q
+```
+
+Smoke-проверка работающего API:
+
+```powershell
 ./.venv/Scripts/python.exe tools/smoke_http.py
 ```
 
-`tools/smoke_http.py` проверяет OpenAPI, проксирование, подборку и исключение истории. Для Docker задайте `SMOKE_FRONTEND_URL=http://127.0.0.1:8080`. Сценарий поддерживает демо-каталог и PostgreSQL.
+Для проверки через Docker/Nginx задайте перед запуском:
 
-```sh
-cd frontend
+```powershell
+$env:SMOKE_FRONTEND_URL = "http://127.0.0.1:8080"
+./.venv/Scripts/python.exe tools/smoke_http.py
+```
+
+Frontend (из каталога `frontend/`):
+
+```powershell
+npm ci
 npm run build
 npm run typecheck
 npm run lint
 npm test
 ```
 
-Для React-тестов с настоящим HTTP (PowerShell, backend и Vite запущены):
+Для тестов React с настоящим HTTP запустите backend и Vite, затем задайте `VITE_LIVE_API_URL`:
 
 ```powershell
-$env:VITE_LIVE_API_URL="http://127.0.0.1:5173"
+$env:VITE_LIVE_API_URL = "http://127.0.0.1:5173"
 npm test -- src/live.test.tsx
 ```
 
-В Docker по умолчанию используется `RECO_STRATEGY=hybrid`. Для сравнения
-установите `RECO_STRATEGY=baseline`. Логи Backend показывают `path=engine`
-при вызове движка и `path=builtin` для резервного ранжирования.
+## Архитектура, API и ограничения
 
-## Ограничения и материалы команды
+- [Контракт API](docs/api.md): `POST /api/v1/recommendations`, `GET /health), схемы запросов/ответов и метаданные.
+- [Архитектура](docs/architecture.md): frontend, nginx, FastAPI, ML-движок и PostgreSQL.
+- [Оценка качества](docs/experiments.md): тестовые профили, офлайн-метрики и ограничения методики.
+- [План A/B-теста](docs/ab_test_plan.md): гипотеза, метрики, дизайн и логирование.
+- [Заметки по данным](docs/data_notes.md): структура исходной выгрузки и особенности полей.
 
-React собирает профиль. История передаётся в API, её удобно проверить в Swagger.
-В предоставленной выгрузке поле `Url` содержит slug, а не полный адрес. Backend формирует HTTPS-ссылку по типу материала для известных публичных маршрутов; неизвестные типы и некорректные slug остаются без ссылки. Платные страницы могут требовать авторизацию или оплату.
-
-[Контракт API](docs/api.md), [архитектура](docs/architecture.md), [оценка качества](docs/experiments.md), [план A/B-теста](docs/ab_test_plan.md).
+История передаётся через API. На текущем этапе она исключает уже просмотренные материалы из выдачи; модель пока не обучается на истории как на положительном сигнале предпочтений. Каждая рекомендация API содержит объяснение и следующий шаг. Для известных типов материалов backend преобразует корректный slug в публичный HTTPS-маршрут Альфа-Курса; неизвестные типы и некорректные slug остаются без ссылки. Закрытое содержание платных материалов не раскрывается; страница может требовать авторизацию или оплату.
