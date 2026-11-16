@@ -1,3 +1,11 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
+
+# Catalog loaded from the provided PostgreSQL dump via the ML loader.
+# The service still runs on the demo catalog if DATABASE_URL is unset.
+psycopg[binary]==3.2.3
+
+# Dev/test
+httpx==0.28.1
+pytest==8.3.4

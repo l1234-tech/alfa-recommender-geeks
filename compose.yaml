@@ -1,12 +1,50 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alfa
+      POSTGRES_PASSWORD: alfa
+      POSTGRES_DB: alfa_course
+    # PostgreSQL imports plain SQL into a new volume. See data/README.md.
+    volumes:
+      - ./data:/docker-entrypoint-initdb.d:ro
+      - alfa_pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${ALFA_DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alfa -d alfa_course"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
-      context: ./backend
-    env_file:
-      - .env
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      # The backend owns the DB connection and calls the ML catalog loader.
+      DATABASE_URL: postgresql://alfa:alfa@db:5432/alfa_course
+      RECO_STRATEGY: ${RECO_STRATEGY:-hybrid}
+      RECO_FORCE_BUILTIN: ${RECO_FORCE_BUILTIN:-0}
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - ./recommender:/recommender
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - "127.0.0.1:${ALFA_API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${ALFA_UI_PORT:-8080}:80"
+
+volumes:
+  alfa_pgdata:

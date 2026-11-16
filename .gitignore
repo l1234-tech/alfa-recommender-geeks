@@ -6,13 +6,16 @@
 *.key
 
 # Data (never commit source case exports)
-data/
+data/*
+!data/README.md
 datasets/
 *.csv
 *.xlsx
 *.parquet
 *.pkl
 *.joblib
+*.dump
+*.backup
 
 # Python
 __pycache__/

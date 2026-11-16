@@ -1,0 +1,12 @@
+.git
+.venv
+**/node_modules
+**/dist
+**/.npm-cache
+**/__pycache__
+.env
+.env.*
+data
+datasets
+*.dump
+*.backup
