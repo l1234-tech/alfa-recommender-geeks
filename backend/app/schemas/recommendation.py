@@ -37,7 +37,7 @@ class UserProfileIn(BaseModel):
 class RecommendationRequest(BaseModel):
     user_profile: UserProfileIn = Field(default_factory=UserProfileIn)
     history: list[HistoryEvent] = Field(default_factory=list)
-    limit: int | None = Field(default=None, ge=1, le=50)
+    limit: int | None = Field(default=None, ge=1, le=20)
 
 
 class RecommendationItem(BaseModel):
