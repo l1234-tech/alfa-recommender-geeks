@@ -130,6 +130,33 @@ it("shows empty state", async () => {
   submit();
   await screen.findByText("Подборка не найдена");
 });
+it("offers a broader cold-start selection when all returned scores are zero", async () => {
+  const zeroScoreResponse = {
+    ...fixtures,
+    recommendations: fixtures.recommendations.map((item) => ({
+      ...item,
+      score: 0,
+    })),
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(new Response(JSON.stringify(zeroScoreResponse))),
+  );
+  fill();
+  submit();
+  await screen.findByText("Точного совпадения не нашлось");
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Сбросить профиль для общей подборки",
+    }),
+  );
+  expect((document.getElementById("industry") as HTMLSelectElement).value).toBe(
+    "",
+  );
+  expect(
+    screen.getByText("Параметры изменились. Обновите подборку"),
+  ).toBeTruthy();
+});
 it("preserves profile and allows retry after server error", async () => {
   const fetcher = vi
     .fn()

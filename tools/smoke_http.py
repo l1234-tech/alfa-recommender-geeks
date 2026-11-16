@@ -35,7 +35,9 @@ for goal in ("marketing", "finance", "team"):
         assert result["recommendations"][0]["topic"] in {"marketing": {"marketing"}, "finance": {"finance", "accounting"}, "team": {"operations", "team"}}[goal]
     print(goal, "source=" + result["metadata"]["catalog_source"], "strategy=" + result["metadata"]["strategy"], "returned=" + str(result["metadata"]["returned"]))
 assert post({"industry": "retail"})["recommendations"]
-assert post({"current_goal": "орбитальная механика"})["recommendations"]
+no_match = post({"current_goal": "орбитальная механика"})
+assert no_match["recommendations"]
+assert all(item["reasons"] and item["next_step"] for item in no_match["recommendations"])
 assert post({"preferred_formats": ["course"]})["recommendations"][0]["material_type"] == "course"
 first = post({"current_goal": "marketing"})["recommendations"][0]["material_id"]
 assert first not in {r["material_id"] for r in post({"current_goal": "marketing"}, [{"material_id": first, "event_type": "view"}])["recommendations"]}

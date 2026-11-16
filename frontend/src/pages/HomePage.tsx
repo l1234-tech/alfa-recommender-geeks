@@ -213,24 +213,46 @@ export function HomePage() {
             )}
             {state.kind === "success" &&
               (state.items.length ? (
-                <RecommendationList
-                  items={state.items}
-                  practicalSteps={mockEnabled}
-                />
+                <>
+                  {state.items.every((item) => item.score <= 0) && (
+                    <div className="placeholder" role="status">
+                      <h3>Точного совпадения не нашлось</h3>
+                      <p>
+                        Покажем общую подборку из доступных материалов. Можно
+                        начать без уточнений или выбрать более широкую задачу.
+                      </p>
+                      <button
+                        className="secondary"
+                        onClick={() => {
+                          setProfile({ ...emptyProfile });
+                          setErrors([]);
+                        }}
+                      >
+                        Сбросить профиль для общей подборки
+                      </button>
+                    </div>
+                  )}
+                  <RecommendationList
+                    items={state.items}
+                    practicalSteps={mockEnabled}
+                  />
+                </>
               ) : (
                 <div className="placeholder">
-                  <h3>Подборка не найдена</h3>
+                  <h3>Подходящие материалы закончились</h3>
                   <p>
-                    Измените задачу или другие параметры профиля и запросите
-                    материалы снова.
+                    Возможно, все доступные материалы уже исключены историей
+                    просмотров. Сбросьте профиль и запросите общую стартовую
+                    подборку.
                   </p>
                   <button
                     className="secondary"
-                    onClick={() =>
-                      document.getElementById("current_goal")?.focus()
-                    }
+                    onClick={() => {
+                      setProfile({ ...emptyProfile });
+                      setErrors([]);
+                    }}
                   >
-                    Изменить профиль
+                    Сбросить профиль
                   </button>
                 </div>
               ))}

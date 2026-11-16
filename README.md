@@ -58,7 +58,22 @@ docker compose up -d --build --wait
 
 Скрипт перед импортом проверяет, что схема public пуста, и отказывается перезаписывать непустую БД. Он потоково передаёт plain SQL в контейнер и удаляет несовместимые с PostgreSQL 16 служебные строки из дампа pg_dump 17. Если импорт остановился из-за непустой БД, **не удаляйте volume автоматически**: сначала проверьте, нужна ли сохранённая база. Полный разбор и восстановление — [data/README.md](data/README.md).
 
-После успешного импорта перезапустите backend (команда запуска всего стека выше это делает) и убедитесь, что API возвращает `metadata.catalog_source = "database"`. Если значение `sample`, настоящая выгрузка не загружена или backend не смог подключиться к БД.
+После успешного импорта пересоздайте backend и frontend:
+
+```powershell
+docker compose up -d --build --wait
+$env:SMOKE_FRONTEND_URL = "http://127.0.0.1:8080"
+$env:SMOKE_CATALOG_SOURCE = "database"
+python tools/smoke_http.py
+```
+
+Smoke-тест завершится ошибкой, если API не вернёт `metadata.catalog_source = "database"`. Дополнительно проверьте фактический путь ранжирования в логах:
+
+```powershell
+docker compose logs --since=5m backend | Select-String "Catalog loaded from database|ranking path=engine|ranking path=builtin"
+```
+
+Ожидается сообщение о загрузке каталога из БД и `ranking path=engine`. Если появляется `ranking path=builtin`, движок не отработал штатно: изучите traceback выше по логам. Если источник `sample`, проверьте `DATABASE_URL`, успешность импорта и наличие таблиц. Не считайте проверку успешной только по статусу контейнера или `/health` — healthcheck не подтверждает подключение каталога и ML-движка.
 
 ## Проверка для жюри
 
@@ -141,7 +156,7 @@ npm test -- src/live.test.tsx
 
 ## Архитектура, API и ограничения
 
-- [Контракт API](docs/api.md): `POST /api/v1/recommendations`, `GET /health), схемы запросов/ответов и метаданные.
+- [Контракт API](docs/api.md): `POST /api/v1/recommendations`, `GET /health`, схемы запросов/ответов и метаданные.
 - [Архитектура](docs/architecture.md): frontend, nginx, FastAPI, ML-движок и PostgreSQL.
 - [Оценка качества](docs/experiments.md): тестовые профили, офлайн-метрики и ограничения методики.
 - [План A/B-теста](docs/ab_test_plan.md): гипотеза, метрики, дизайн и логирование.
