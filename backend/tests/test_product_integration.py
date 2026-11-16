@@ -33,7 +33,7 @@ def test_russian_catalog_topics_are_normalized_consistently():
 
 
 def test_optional_metadata_and_unknown_payment_are_preserved(monkeypatch):
-    item = replace(get_catalog()[0], url="https://example.org/material", is_paid=None)
+    item = replace(get_catalog()[0], url="https://kurs.alfabank.ru/articles/material/", is_paid=None)
     monkeypatch.setattr(recommendation_service, "get_materials", lambda: [item])
     monkeypatch.setattr(recommendation_service, "catalog_source", lambda: "database")
     result = recommendation_service.get_recommendations(RecommendationRequest())
@@ -41,8 +41,8 @@ def test_optional_metadata_and_unknown_payment_are_preserved(monkeypatch):
     assert result.recommendations[0].url == item.url
     assert result.recommendations[0].description == item.description
     assert result.recommendations[0].is_paid is None
-    assert recommendation_service.public_url("javascript:alert(1)") is None
-    assert recommendation_service.public_url("/materials/fake") is None
+    assert recommendation_service.public_url("javascript:alert(1)", "article") is None
+    assert recommendation_service.public_url("/materials/fake", "article") is None
 
 
 def test_forced_fallback_remains_explicit(caplog):

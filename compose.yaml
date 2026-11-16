@@ -5,9 +5,9 @@ services:
       POSTGRES_USER: alfa
       POSTGRES_PASSWORD: alfa
       POSTGRES_DB: alfa_course
-    # PostgreSQL imports plain SQL into a new volume. See data/README.md.
+    # Restore the supplied SQL explicitly with tools/restore_catalog.py.
+    # pg_dump 17 output needs a small compatibility filter for PostgreSQL 16.
     volumes:
-      - ./data:/docker-entrypoint-initdb.d:ro
       - alfa_pgdata:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:${ALFA_DB_PORT:-5433}:5432"

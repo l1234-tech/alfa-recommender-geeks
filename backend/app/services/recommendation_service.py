@@ -10,7 +10,17 @@ from ..schemas.recommendation import (
 )
 from . import ml_adapter
 from .catalog_provider import get_materials, catalog_source
-from urllib.parse import urlsplit
+import re
+from urllib.parse import quote, urlsplit
+
+
+PUBLIC_ORIGIN = "https://kurs.alfabank.ru"
+PUBLIC_PATHS = {
+    "article": "/articles/", "course": "/courses/", "document": "/documents/",
+    "webinar": "/webinars/", "podcast": "/podcasts/", "calculator": "/calculators/",
+    "glossary": "/vocabulary/",
+}
+_SLUG_RE = re.compile(r"^[\\w-]+$", re.UNICODE)
 
 
 def get_recommendations(request: RecommendationRequest) -> RecommendationResponse:
@@ -33,7 +43,7 @@ def get_recommendations(request: RecommendationRequest) -> RecommendationRespons
             material_id=r.material.material_id,
             title=r.material.title,
             description=(r.material.description or None) if r.material.is_paid is not True else None,
-            url=public_url(r.material.url) if catalog_source() == "database" else None,
+            url=public_url(r.material.url, r.material.material_type) if catalog_source() == "database" else None,
             material_type=r.material.material_type,
             topic=r.material.topic,
             is_paid=r.material.is_paid,
@@ -56,13 +66,24 @@ def get_recommendations(request: RecommendationRequest) -> RecommendationRespons
     )
 
 
-def public_url(value: str | None) -> str | None:
+def public_url(value: str | None, material_type: str | None = None) -> str | None:
+    """Resolve catalog slugs to known public Альфа-Курс routes safely."""
     if not value:
         return None
+    raw = value.strip()
+    if not raw:
+        return None
     try:
-        parsed = urlsplit(value)
-        if parsed.scheme.lower() in {"https", "http"} and parsed.hostname and not parsed.username and not parsed.password:
-            return value
+        parsed = urlsplit(raw)
+        if parsed.scheme:
+            if (parsed.scheme.lower() == "https" and parsed.hostname == "kurs.alfabank.ru"
+                    and not parsed.username and not parsed.password):
+                return raw
+            return None
     except ValueError:
-        pass
-    return None
+        return None
+    path = PUBLIC_PATHS.get((material_type or "").strip().casefold())
+    slug = raw.strip("/")
+    if path is None or not _SLUG_RE.fullmatch(slug) or slug in {".", ".."}:
+        return None
+    return f"{PUBLIC_ORIGIN}{path}{quote(slug, safe='-_')}/"
